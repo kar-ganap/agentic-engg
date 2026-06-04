@@ -25,7 +25,7 @@ MODEL_VALIDATION = "claude-sonnet-4-6"  # spot-checks of key points only
 # --- budget ---------------------------------------------------------------
 BUDGET_USD = 50.0
 # Rough Haiku-tier input price; VERIFY against current pricing before the run.
-_INPUT_USD_PER_MTOK = 1.0
+INPUT_USD_PER_MTOK = 1.0
 
 
 @dataclass(frozen=True)
@@ -61,11 +61,11 @@ def runs_per_cell() -> int:
     return len(LENGTHS) * len(DEPTHS) * len(SEEDS)
 
 
-def estimate_cost_usd() -> float:
-    """Rough input-token cost across all cells (output + count_tokens negligible/free)."""
+def estimate_cost_usd(cells: list[Cell] | None = None) -> float:
+    """Rough input-token cost (output + count_tokens negligible/free)."""
+    n_cells = len(CELLS if cells is None else cells)
     input_tokens_per_cell = len(DEPTHS) * len(SEEDS) * sum(LENGTHS)
-    total_input_tokens = len(CELLS) * input_tokens_per_cell
-    return total_input_tokens / 1_000_000 * _INPUT_USD_PER_MTOK
+    return n_cells * input_tokens_per_cell / 1_000_000 * INPUT_USD_PER_MTOK
 
 
 def _main() -> None:
@@ -80,7 +80,7 @@ def _main() -> None:
         print(f"  [item {c.item}] {c.structure:16} {c.competition:10} sim={c.similarity:4} -> {c.tests}")
     est = estimate_cost_usd()
     print()
-    print(f"est. input cost: ${est:.2f}  (budget ${BUDGET_USD:.0f}; @ ${_INPUT_USD_PER_MTOK}/MTok input — VERIFY pricing)")
+    print(f"est. input cost: ${est:.2f}  (budget ${BUDGET_USD:.0f}; @ ${INPUT_USD_PER_MTOK}/MTok input — VERIFY pricing)")
     if est > BUDGET_USD:
         print("  WARNING: estimate exceeds budget — trim seeds, drop 100k, or split cells.")
 

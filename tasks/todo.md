@@ -7,7 +7,7 @@
 Branch: `phase-1.0-context-engineering`. Plan: `docs/phases/phase-1.0-plan.md`. **Critical boundary** (three-reviewer pass at close).
 
 ### Backlog (priority-ordered; core = 1–4)
-- [ ] **1. Infra** — `eval/accuracy.py` ✅ · `rot/haystack.py` (clean_essay ✅, tool_call_stream ✅, diversity+same-vault fix ✅) · `experiments/phase-1.0/run_config.py` ✅ · `rot/runner.py` *(next)* · P&P corpus under `data/` *(next)*. TDD. *(in progress)*
+- [x] **1. Infra** — `eval/accuracy.py` ✅ · `rot/haystack.py` (essay + tool_stream + diversity/same-item + benign-domain fix) ✅ · `rot/corpus.py` + P&P corpus ✅ · `rot/runner.py` ✅ · `experiments/phase-1.0/run_config.py` ✅. **61 tests green; committed (bda5d1d).** Benign-domain redesign after real-API smoke caught safety refusals (lessons §0.9).
 - [ ] **2. A-baseline** — clean vs. distractor on essay haystack → validate harness reproduces Chroma mechanism.
 - [ ] **3. A-structure-1** — tool-call/observation stream → `(ceiling, knee, slope)` + passband?
 - [ ] **4. B** — KV-cache instrumentation + anti-pattern break/restore.
