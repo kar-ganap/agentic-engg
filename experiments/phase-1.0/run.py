@@ -20,13 +20,12 @@ import argparse
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 # run_config is a sibling module in this (non-package) experiments dir.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_config as cfg  # noqa: E402
 
 from stance.rot.corpus import load_sentences  # noqa: E402
+from stance.secrets import anthropic_api_key  # noqa: E402
 from stance.rot.runner import (  # noqa: E402
     accuracy_by_length,
     load_records,
@@ -87,10 +86,10 @@ def main() -> None:
         print("\n(dry-run — pass --go to execute)")
         return
 
-    load_dotenv()
     import anthropic
 
-    client = anthropic.Anthropic()
+    # Key strictly from .env (never the shell) — see stance.secrets / CLAUDE.md.
+    client = anthropic.Anthropic(api_key=anthropic_api_key())
 
     def complete(**kw: object) -> object:
         return client.messages.create(**kw)

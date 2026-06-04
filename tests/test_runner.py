@@ -7,7 +7,6 @@ gotcha) and the needle is found in an easy case.
 
 from __future__ import annotations
 
-import os
 from types import SimpleNamespace
 from typing import Any
 
@@ -22,6 +21,7 @@ from stance.rot.runner import (
     passband_knee,
     run_cell,
 )
+from stance.secrets import anthropic_api_key, has_anthropic_key
 
 FILLER = [
     "The harbor was quiet that morning and the sky stayed a pale grey.",
@@ -134,16 +134,13 @@ def test_passband_knee_full_passband() -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.skipif(
-    not os.environ.get("ANTHROPIC_API_KEY"),
-    reason="ANTHROPIC_API_KEY not set",
-)
+@pytest.mark.skipif(not has_anthropic_key(), reason="ANTHROPIC_API_KEY not in .env")
 def test_real_api_tool_stream_accepted(tmp_path: Any) -> None:
     """Verify the real API accepts tool_call_stream history (tools-param gotcha)
     and finds the needle in an easy case. Burns ~$0.001."""
     import anthropic
 
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=anthropic_api_key())
 
     def complete(**kw: Any) -> Any:
         return client.messages.create(**kw)

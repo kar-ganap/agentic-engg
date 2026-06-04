@@ -16,7 +16,6 @@ smoke test:
 from __future__ import annotations
 
 import json
-import os
 from itertools import count as _icount
 from types import SimpleNamespace
 from typing import Any
@@ -26,6 +25,7 @@ from anthropic.types import TextBlock, ToolUseBlock
 
 from stance.instrumentation import BudgetLogger
 from stance.loop import _extract_text, run_loop
+from stance.secrets import anthropic_api_key, has_anthropic_key
 from stance.tools import ADD, ECHO
 from tests.conftest import FakeCounter
 
@@ -329,10 +329,7 @@ def test_parallel_tool_calls_in_one_turn(tmp_path: Any) -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.skipif(
-    not os.environ.get("ANTHROPIC_API_KEY"),
-    reason="ANTHROPIC_API_KEY not set (skipped in CI without secrets)",
-)
+@pytest.mark.skipif(not has_anthropic_key(), reason="ANTHROPIC_API_KEY not in .env")
 def test_real_api_single_tool_cycle(tmp_path: Any) -> None:
     """Smoke test against the real Anthropic API. Burns ~$0.001.
 
@@ -342,7 +339,7 @@ def test_real_api_single_tool_cycle(tmp_path: Any) -> None:
     """
     import anthropic
 
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=anthropic_api_key())
 
     def complete(**kw: Any) -> Any:
         return client.messages.create(**kw)

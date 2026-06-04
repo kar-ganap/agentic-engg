@@ -56,6 +56,7 @@ Phase IDs follow `Stage.Phase`: 0.0, 1.0, 1.1, 2.0–2.4, 3.0–3.3, 4.0. Plans 
 - **Reproducibility.** Pin all parameters, seeds, model versions. Raw data is never modified. Token-budget logs and trace dumps are append-only.
 - **Stash-based bug-fix proof** (from ccupa): stash fix → confirm tests fail → pop stash → confirm tests pass. Verifies the test catches the bug, not just that the bug is gone.
 - **Demand elegance (balanced).** For non-trivial changes, pause and ask "is there a more elegant way?" Skip for simple fixes.
+- **Secrets strictly from `.env`, never the shell.** All API keys/secrets load via `stance.secrets` (reads `.env` directly through `dotenv_values`; `os.environ`/`.zshrc` is never consulted; missing keys fail loud). Construct clients as `anthropic.Anthropic(api_key=stance.secrets.anthropic_api_key())` — never bare `Anthropic()`, never `load_dotenv()` into the process env. **`.env` must hold a project-scoped *personal* key; never copy a work or shared key into it.** *Trigger: without this, `load_dotenv()`'s no-override default lets a shell `ANTHROPIC_API_KEY` (e.g. a work key in `.zshrc`) silently win over `.env`, and a work account gets billed for personal experiments — it happened 2026-06-03 (lessons §0.10); with this, the project can only ever use the key explicitly placed in `.env`.*
 
 ## Substrate Discipline (curriculum-adaptation of experimental discipline)
 
