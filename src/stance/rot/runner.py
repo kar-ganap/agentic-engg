@@ -117,7 +117,18 @@ def run_cell(
                         "depth": depth,
                         "seed": seed,
                         "hit": hit,
-                        "answer": answer[:300],  # for offline re-scoring + audit (§0.11)
+                        # Full answer (not truncated): a verbose model can state the
+                        # needle early then hedge late — a cap would hide the hedge
+                        # and let offline `committed` over-count (§0.11). Disk is ours.
+                        "answer": answer,
+                        # Self-describing record (Substrate Discipline #5): the params
+                        # §0.11 proved are outcome-determining are stamped here, so a
+                        # record's regime is never ambiguous (an earlier Sonnet file
+                        # omitted these and became un-rescoreable).
+                        "max_tokens": max_tokens,
+                        "system": system,
+                        "diffuse_density": diffuse_density,
+                        "n_distractors": n_distractors,
                         "needle_position": h.metadata["needle_position"],
                         "n_competitors": h.metadata["n_competitors"],
                     }

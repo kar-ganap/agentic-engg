@@ -18,9 +18,8 @@
 
 ## §0 — Scope and current focus
 
-- **Current phase:** Phase 1.0 reading (Module 1, Context Engineering).
-- **Sources read:** Manus *Context Engineering: Lessons from Building Manus* (Ji, July 2025).
-- **Sources pending:** Anthropic *Effective Context Engineering for AI Agents* (Sept 2025); Chroma *Context Rot* (Hong/Troynikov/Huber).
+- **Current phase:** Phase 1.0 (Module 1, Context Engineering) — reading done; **Exercise A (context-rot) experiments complete** (`experiments/phase-1.0/results.md`, 2026-06-04). Exercise B (KV-cache) and the phase-close ritual pending.
+- **Sources read:** Manus *Context Engineering: Lessons from Building Manus* (Ji, July 2025); Anthropic *Effective Context Engineering for AI Agents* (Sept 2025); Chroma *Context Rot* (Hong/Troynikov/Huber); arXiv:2603.10123 *Lost in the Middle at Birth* (Mar 2026).
 - **Focus area for positions this phase:** how context is structured, sized, and shaped; what's stable vs. mutable; how to instrument and defend KV-cache hit rate.
 
 ---
@@ -121,6 +120,8 @@
 **Note — Chroma (and NIAH generally) is a *lower bound* on this position:** needle-in-a-haystack benchmarks measure *retrievability* (can the model find a needle when asked) — the **easier** quantity that §1.3 explicitly distinguishes from *active influence* (does distant content shape the current decision unprompted). Since active influence is the harder operation, retrieval-degradation results are a lower bound: if retrievability already degrades with length/noise, active influence plausibly degrades *at least as much*. So Chroma corroborates the *direction* of §1.3 without overstating it — if anything it understates the agentic problem. (Application of the contrived±asymmetry, `tasks/lessons.md` §0.8: a contrived negative on the *easier* quantity → robust lower bound on the harder one.)
 
 **Note — Chroma found NO position effect for NIAH retrieval (sharpens, doesn't refute):** across 11 needle positions Chroma reports "no notable variation in performance" for the NIAH retrieval task; repeated-words shows a *primacy* effect (best near the beginning); Liu et al. (2023) found a U for multi-doc QA. So position-effects are **task-dependent**, not universal — which (a) sharpens §1.3's preconditions (the J/U shape is regime-specific) and (b) *supports* the retrievability-vs-active-influence distinction: retrieval shows no position effect here, so if a position effect appears it's in the harder active-influence quantity, exactly as §1.3 claims. Does not move §1.3's confidence (Chroma measures the wrong quantity for it) but validates the framing's central distinction.
+
+**Note — candidate *architectural* mechanism for position bias (Lost in the Middle at Birth, arXiv:2603.10123, Mar 2026; primary source read 2026-06-04, §4 entry):** the paper reports a **U-shaped Jacobian-norm *sensitivity*** (how much the output moves with a token's *position*, content fixed) present at **initialization** (random weights), attributed to causal masking + positional encoding (RoPE) + softmax + depth; training is reported to **mitigate** it (not "never erase" — that was an inflated secondhand summary we corrected by reading the source). **Three reasons to hold this loosely for §1.3, not promote it:** (i) it measures *sensitivity*, not *accuracy* — the paper itself flags Jacobian norm as "one lens; task performance may not fully reflect it," which is exactly §1.3's sensitivity≠active-influence≠retrievability distinction; (ii) "training mitigates" reconciles cleanly with Chroma's task-dependence (no universal accuracy-U) — *against* any immutable-blind-spot reading; (iii) it's not testable on our Anthropic-API behavioral setup (needs open-weights interpretability tooling — same regime as the §1.3-v2 open problem). **Net for §1.3:** a primary-source-grounded *reason the shape is regime-specific* (architectural sensitivity bias at birth, modulated by training → task/model-dependent observed curves). Strengthens the "regime-specific shape" precondition; does **not** license a universal accuracy-U; does not move confidence (wrong quantity + untestable here). Attribution detail is via a fast-model PDF summary — verify the actual sections before citing the softmax/depth decomposition precisely.
 
 **What evidence would update this (and by how much):**
 - **Down 20–30 (toward retraction):** Controlled measurement on long-context agent loops showing beginning-position content drives current decisions *as strongly as* end-position content (collapsing J back to symmetric U for the active-influence quantity).
@@ -268,7 +269,9 @@ Load-bearing only in the **intersection** of:
 
 **Stance:** the onset and severity of context rot is governed primarily by the *signal-to-noise ratio* of the context, not by raw token count. At fixed length, adding semantically-similar competing content (distractors) sharply degrades performance; at fixed signal density, length matters far less. "Context is a finite resource" is more precisely "*high-signal* context is a finite resource."
 
-**Confidence:** 70. Direct experimental support (Chroma distractor + similarity experiments: same length, different S/N → very different accuracy). One of the better-evidenced §1 positions. Mechanism-level → generalizes; magnitudes setup-specific (§0.8).
+**Confidence:** 80 (raised 70→80, 2026-06-04, on own-substrate experimental confirmation — Phase 1.0 Exercise A). Both literature (Chroma) and now our own measurements support it; cross-model replicated (Haiku + Sonnet). Mechanism-level → generalizes; magnitudes setup-specific (§0.8).
+
+**Retraction criterion (the actual commitment):** demote if **(a)** any model shows a *neutral* (no-competition) knee *below* its diffuse knee — i.e. pure length rots before competition does, restoring token-count as primary — or **(b)** diffuse competition *fails* to collapse confident retrieval in a different model family. Clause (b)'s *within-family* leg is discharged (Sonnet 4.6 replicates the collapse); the *cross-family* leg (DeepSeek) is pending (§3.6 deferred check).
 
 **Preconditions:**
 - Retrieval or reasoning over long context (the regime where rot occurs at all; ≥ ~knee length).
@@ -276,21 +279,23 @@ Load-bearing only in the **intersection** of:
 - Frontier autoregressive models (Chroma's tested class).
 
 **Supporting evidence:**
+- **Experiment (own substrate, direct — Phase 1.0 Exercise A, `experiments/phase-1.0/results.md`):** at matched length, **diffuse** competition (pervasive task-related distractors, count ∝ L) collapsed confident retrieval to 0 by ~10–20k (Haiku) / ~5k (Sonnet), while **neutral** (topic-unrelated filler) and **localized** (fixed distractor count) held flat to 100k. Length held constant in the neutral arm produced *no* knee through 100k → competition, not token count, drives onset. The cleanest separation we have between the two candidate drivers, and it replicated across two models.
 - Literature (direct): Chroma *Context Rot* — distractor experiments (semantically-similar competing content destroys the free budget at fixed length); needle-question-similarity (higher signal → later knee). See §4 Chroma, §5.2.
 - Literature (consistent): Anthropic "smallest set of high-signal tokens"; Manus (signal-dense failures worth keeping, §1.2).
-- Mechanistic: attention is finite and competitive; semantically-similar distractors compete with the needle for attention more than dissimilar filler does.
+- Mechanistic: attention is finite and competitive; semantically-similar distractors compete with the needle for attention more than dissimilar filler does. The **diffuse** regime adds a length-coupled noise term the **localized** regime lacks (competitor mass ∝ L) — see §3.6 pre-registration; confirmed by the diffuse-collapses / localized-holds split.
 
 **What evidence would update this (and by how much):**
 - **Down 20–30 (toward retraction):** a setup where, at fixed signal density, length *alone* governs degradation (S/N held constant, length varied, large effect) — restores token-count as primary.
 - **Down 5–10 (scope):** some task class (e.g., pure long-form generation) where token count dominates regardless of S/N.
-- **Up 5–10:** replication on our own agentic substrate (§3.6) showing S/N predicts the knee better than length.
+- **Up 5–10 (banked 2026-06-04):** replication on our own agentic substrate (§3.6) showing S/N predicts the knee better than length — *realised*; this is the 70→80 move.
+- **Further up (toward 85):** cross-family replication (DeepSeek) confirming the same competition-driven collapse — discharges the retraction criterion's clause (b) fully.
 - **Conditionally generalizes to:** any long-context retrieval/reasoning regime with a signal/noise distinction. Direction transfers (mechanism); magnitudes don't.
 
 **Mechanism data to capture:** at matched length, vary S/N (distractor count/potency, needle-question similarity) → S/N should predict accuracy better than length; at matched S/N, vary length → smaller effect. (This is the Chroma design; §3.6 re-runs it on agentic structures.)
 
 **Relationship to other entries:** promoted from the §2.1 resolution sketch on direct Chroma evidence. Underlies §2.4 (the knee/budget is set by S/N), §5.2 (parameterized response), §1.7 (uniformity is one form of S/N degradation), §1.2 (failures are high-signal). The "data quality > quantity" row of §5.1.
 
-**Status:** candidate (pre-2.0). Registered 2026-06-01.
+**Status:** candidate (pre-2.0). Registered 2026-06-01. Confidence 70→80 on own-substrate experimental confirmation 2026-06-04; retraction criterion added.
 
 ---
 
@@ -435,6 +440,14 @@ So diffuse carries a **length-coupled noise term localized lacks** → faster `w
 
 *Key DV:* does a passband exist per (structure × competition), or decline from the start? Plus `(ceiling, knee, slope)` per §5.2. **Flips toward H_A if:** diffuse curves track neutral (no length-coupled extra decay) — would weaken the §5.2 agentic prediction (retrieval heads make unique-string needles robust to diffuse semantic competition).
 
+**OUTCOME (2026-06-04, `experiments/phase-1.0/results.md`) — H_B confirmed; scored committed (key present, unhedged) + lenient (key present), 5-seed Haiku to 100k + 3-seed Sonnet to 20k, `tool_call_stream` / low-sim:**
+- **P1 (diffuse > neutral, gap widens with L) — CONFIRMED, strongly.** Haiku diffuse committed `1.00→0.27(10k)→0.00(20k+)`; neutral & localized held flat to 100k (~0.7–0.9, *no* knee). The gap doesn't just widen — neutral has no knee in range at all, so it's qualitative. Length-alone (neutral arm to 100k) produced no decay → competition, not token count, is the driver (banks §1.8 70→80).
+- **P2 (diffuse steeper than localized; crossover) — SUPPORTED, QUALIFIED.** Diffuse ≫ localized confirmed (localized held to 100k; diffuse dead by 20k). **No crossover observed** — localized never rotted in range, so it was never "worse at short L." The length-coupled-noise mechanism is supported by the *split*, not by a crossover.
+- **P3 (harm ∝ relatedness; H_A pocket at low relatedness) — UNTESTED.** Relatedness not swept this phase (fixed at the structural-distractor design). Deferred.
+- **P4 (hardest when distractors share needle structure) — UNTESTED directly,** but consistent with the observed binding-failure mode (model confuses Meridian's catalog number with other manuscripts' catalog numbers and with Meridian's other attributes). Deferred for a clean test.
+- **Mechanism refinement (new, → §3.8):** the collapse is **discriminability loss** (can't bind needle→entity among competitors), expressed two ways — **confabulation** (Haiku states/lists wrong-or-multiple numbers) vs. **refusal** (Sonnet says UNKNOWN / "inconsistent and unreliable"). Committed→0 precedes lenient→0 (Haiku): discriminability fails *before* outright burial.
+- **Validation spot-checks:** *Sonnet* — **DONE 2026-06-04**; replicates the collapse (zero by ~5k, earlier/harder than Haiku) → not a Haiku artifact; discharges the within-family leg of §1.8's retraction clause (b). *Realism* and *cross-provider (DeepSeek)* — still deferred (next phase).
+
 **Cross-refs:** §3.4 (failure-shaped padding = one cell of this taxonomy), §1.3 (lower-bound), §1.7 (homogeneity), §2.1 (signal density), §5.1 (structure of the in-context training set).
 
 **Dependency — verification attempted, UNRESOLVED (2026-06-01):** the paper's prose does not specify precisely enough whether coherent-vs-shuffled holds content+length constant and varies only *order* (interpretation B) or varies *topic-count* (1 essay vs. 3, interpretation A). As written, we cannot tell. Consequences:
@@ -470,6 +483,34 @@ So diffuse carries a **length-coupled noise term localized lacks** → faster `w
 **Cross-refs:** §1.2, §5.2, §1.8 (clearing raises signal density), §3.1 (compaction), §3.5 (failure disentangling) — shares machinery.
 
 → Phase 1.0 exercise 2 (compaction). Doubles as our hands-on comparison to the **first-party** compaction feature (`clear_tool_uses_20250919`) — which M1 exercise 2 calls for directly.
+
+---
+
+### §3.8 — Under diffuse competition, capability shifts the failure *mode* (confabulate → refuse) and pulls the knee *earlier*
+
+**Stance (provisional, candidate hypothesis):** As model capability increases, the failure mode under diffuse competition shifts from **confident confabulation** (emit a wrong / multiple catalog number) toward **honest refusal** (decline / flag the records as conflicting), and the diffuse knee moves **earlier**, not later. A stronger model is a better *conflict-detector*, not a more robust *retriever*, under pervasive competition — so on a committed-accuracy metric it can look *worse*, while behaving more appropriately about its own uncertainty.
+
+**Confidence:** 45 (provisional — single comparison, Haiku 4.5 vs Sonnet 4.6, n=9/point spot-check, one structure/similarity). Direction is clear in-sample; magnitude and generality are not.
+
+**Evidence (Phase 1.0 Exercise A, `experiments/phase-1.0/results.md`):**
+- Sonnet diffuse committed hits 0 by **~5k**; Haiku by **~20k** (knee ~4× earlier in the stronger model).
+- Sonnet's *lenient* (mention) score also collapses fast (key often absent entirely) — it answers terse `UNKNOWN` even at 1k; Haiku keeps emitting the string (lenient stays higher) but hedges/errs. Same underlying discriminability loss, opposite surface behavior.
+- Recorded answers: Sonnet — "inconsistent and unreliable", "cannot be reliably confirmed", `UNKNOWN`; Haiku — "found multiple catalog numbers: QX-7793-LK / BF-1573-NT…", commits-then-undercuts.
+
+**Why it might be true (mechanism):** a stronger model more reliably *detects* that the needle is non-discriminating among competitors, and is better RLHF-aligned to refuse under detected ambiguity than to guess. Detection improves with capability faster than binding-under-competition does → earlier, more honest failure.
+
+**Preconditions:** diffuse (pervasive, length-scaling) competition; a unique true answer exists (so refusal is a genuine binding failure, not appropriate caution); models in the same family/era (cross-family confounds capability with training/architecture).
+
+**Retraction / update criterion:**
+- **Down toward retraction:** a stronger model shows a *later* diffuse knee AND lower refusal rate than a weaker one (capability → genuine robustness, not earlier honesty) — would invert the claim.
+- **Down (scope):** the refuse-vs-confabulate split is an artifact of the system prompt's "reply UNKNOWN if absent" instruction rather than capability — test by varying the refusal affordance.
+- **Up:** a third model on the capability ladder (e.g. Opus, or DeepSeek tiers) continues the monotone "more capable → earlier-and-more-refusal" trend; and the split survives removing the explicit UNKNOWN affordance.
+
+**Caveats (load-bearing — flagged for the reviewer pass):** (i) n=9/point, one (structure × similarity) cell; (ii) the "committed" metric *defines* refusal as failure — defensible only because the needle is the unique true answer (refusal = binding failure, not warranted caution), but the framing does the work and must be stated; (iii) the explicit `UNKNOWN` affordance in the answer prompt may inflate Sonnet's refusal rate (the scope-down test above).
+
+**Relationship to other entries:** a refinement of §1.8 / §5.2 (the diffuse-collapse mechanism) along the capability axis; shares the discriminability mechanism with §3.6's H_B. Seed of a **Property-4 contribution candidate** (capability-dependent failure modes under pervasive competition) — logged in `tasks/contribution-candidates.md`.
+
+**Status:** candidate hypothesis (provisional). Registered 2026-06-04 from the Phase 1.0 Sonnet spot-check. Needs a fuller test (ladder of ≥3 models, affordance control, ≥5 seeds, multiple cells) before any confidence above ~55.
 
 ---
 
@@ -551,6 +592,16 @@ So diffuse carries a **length-coupled noise term localized lacks** → faster `w
 
 ---
 
+### arXiv:2603.10123 — *Lost in the Middle at Birth: Position Bias in Transformers* (Mar 2026) — read (primary source) 2026-06-04
+
+**Headline:** a **U-shaped positional *sensitivity*** (Jacobian norm: how much the output moves with a token's *position*, content held fixed) is present at **initialization** (random weights), attributed to causal masking + positional encoding (RoPE) + softmax + depth. Training **mitigates** it (explored empirically) rather than erasing it; the paper flags Jacobian norm as "one lens — task performance may not fully reflect it," and scopes to autoregressive transformers.
+
+**Why read it:** raised conversationally via a Gemini summary that overstated it ("*proved* a U-shaped *attention* bias that training *never erases* — an architectural *blind spot*"). Reading the source corrected three things — sensitivity (not accuracy/attention), training *mitigates* (not never-erases), "one lens" (not blind spot). Clean instance of secondhand-summary inflation (→ `tasks/lessons.md`, proposed verify-primary-source lesson).
+
+**What it moves:** adds a candidate *architectural* mechanism to §1.3 (see the §1.3 note). Held **loosely**: it measures the sensitivity quantity (not §1.3's active-influence/retrievability), reconciles with Chroma's task-dependence via "training mitigates," and is untestable on our API-behavioral setup. Strengthens §1.3's "regime-specific shape" precondition without licensing a universal accuracy-U; no confidence change. **Caveat:** the attribution decomposition (softmax/depth shares) is via a fast-model PDF summary — verify the sections before citing precisely.
+
+---
+
 ## §5 — Cross-cutting framings (candidate synthesis threads)
 
 > Organizing lenses that span multiple positions/tensions — *not* positions themselves (no single stance/confidence) and *not* hypotheses (no single experiment). These are candidate scaffolds for the eventual capstone report: ideas that, if they hold up, give the synthesis its spine. Each carries known caveats so we don't over-run the analogy.
@@ -600,8 +651,12 @@ Each is a candidate §1/§3 entry the framing *predicts* before we've read a sou
 
 **Shape not mechanism:** "low-pass" / "cliff" describe shapes, not a frequency-domain process. Per §0.8: take the mechanism and direction, not Chroma's specific magnitudes.
 
-**The agentic punchline (strong, actionable prediction):** real agentic contexts are **distractor-rich by nature** — accumulated tool outputs, related retrieved docs, prior similar reasoning all act as semantically-similar competing content. So per the conditional-passband finding + the §1.3 lower-bound (Chroma measures the easier *retrievability* quantity), **real agentic contexts likely have little or no free context budget** — they live in the "with-distractors, knee→0" regime, not the clean-needle regime. Aggressive context curation is therefore not optional hygiene for agents; there's no free plateau to coast on. Directly motivates §3.6 (does a passband exist *at all* for realistic agentic structures?) and strengthens §2.1 / §2.4.
+**The agentic punchline (strong, actionable prediction) — now experimentally confirmed (2026-06-04):** real agentic contexts are **distractor-rich by nature** — accumulated tool outputs, related retrieved docs, prior similar reasoning all act as semantically-similar competing content. So per the conditional-passband finding + the §1.3 lower-bound (Chroma measures the easier *retrievability* quantity), **real agentic contexts likely have little or no free context budget** — they live in the "with-distractors, knee→0" regime, not the clean-needle regime. Aggressive context curation is therefore not optional hygiene for agents; there's no free plateau to coast on.
+
+> **Confirmation (Phase 1.0 Exercise A, `experiments/phase-1.0/results.md`):** modelling the *diffuse* regime (whole haystack task-related — the agentic case) on `tool_call_stream`, the **free budget collapsed to ≈10–20k tokens (Haiku) / ≈5k (Sonnet)** — confident retrieval went to 0 — while the *neutral* control held a passband flat to 100k. So the agentic "knee→0" prediction holds on our own substrate: the diffuse free budget is small and sets in early, exactly where the prediction placed it. Re-promotes this framing from "Chroma-grounded prediction" to "own-substrate-confirmed." Caveat: a unique-string needle is a *retrievability ceiling* (the easier quantity, §1.3) — active-influence budget is plausibly ≤ this.
+
+Directly motivates §3.6 (does a passband exist *at all* for realistic agentic structures? — answered: not under diffuse competition) and strengthens §2.1 / §2.4.
 
 **Targeted countermeasure:** tool-result clearing (Anthropic's `clear_tool_uses`) removes exactly the dominant agentic distractor class identified above (spent tool outputs) → **prediction: clearing spent tool results recovers free budget in agentic contexts** (tested §3.7). Per §1.2, clear spent *successes* but preserve a *failure* signal.
 
-**Status:** candidate framing, empirically grounded (Chroma). Registered 2026-06-01. The agentic-no-free-budget prediction is the key testable claim (→ §3.6).
+**Status:** candidate framing, empirically grounded (Chroma) and **own-substrate confirmed** (Phase 1.0, 2026-06-04). Registered 2026-06-01. The agentic-no-free-budget prediction (the key testable claim) held: diffuse free budget ≈10–20k Haiku / ≈5k Sonnet (→ §3.6 outcome, §1.8).
