@@ -20,12 +20,6 @@ from typing import Any
 from stance.eval.accuracy import is_hit
 from stance.rot.haystack import build_haystack
 
-_GENERIC_TOOL_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {"query": {"type": "string"}},
-    "required": ["query"],
-}
-
 # Forces a concise, scoreable answer — without it, verbose/cautious models bury or
 # withhold the needle and a binary substring scorer mis-reads formatting as
 # retrieval failure (lessons §0.11; caught by the Sonnet spot-check).
@@ -33,26 +27,6 @@ ANSWER_SYSTEM = (
     "You are answering a factual lookup. Reply with ONLY the exact catalog "
     "number requested, and nothing else. If it is not present, reply UNKNOWN."
 )
-
-
-def _tools_for(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Minimal `tools` param covering every tool_use name in the history.
-
-    Messages containing tool_use blocks can be rejected without a matching
-    `tools` definition; we declare a generic read-only schema per referenced
-    name. Empty for clean_essay (no tool_use present).
-    """
-    names: set[str] = set()
-    for m in messages:
-        content = m.get("content")
-        if isinstance(content, list):
-            for block in content:
-                if isinstance(block, dict) and block.get("type") == "tool_use":
-                    names.add(block["name"])
-    return [
-        {"name": n, "description": "A read-only lookup tool.", "input_schema": _GENERIC_TOOL_SCHEMA}
-        for n in sorted(names)
-    ]
 
 
 def _answer_text(response: Any) -> str:
@@ -118,23 +92,19 @@ def run_cell(
                         n_distractors=n_distractors,
                         diffuse_density=diffuse_density,
                     )
+                    # NO tools param: tool_use history is accepted without it, and
+                    # omitting tools means the model CANNOT "search" — it must answer
+                    # from context. (Passing tools caused the model to tool-call
+                    # instead of answering; tool_choice=none caused empty responses.
+                    # Both were artifacts — lessons §0.11.)
                     kwargs: dict[str, Any] = {"model": model, "messages": h.messages}
                     if system:
                         kwargs["system"] = system
-                    tools = _tools_for(h.messages)
-                    if tools:
-                        kwargs["tools"] = tools
                     exact_tokens = count_fn(**kwargs)
                     if exact_tokens > max_input_tokens:
                         skipped += 1
                         continue
-                    create_kwargs = dict(kwargs)
-                    if tools:
-                        # Declare tools so the tool_use history validates, but FORBID
-                        # calling them — else the model "searches" instead of
-                        # answering from context (lessons §0.11).
-                        create_kwargs["tool_choice"] = {"type": "none"}
-                    response = complete_fn(max_tokens=max_tokens, **create_kwargs)
+                    response = complete_fn(max_tokens=max_tokens, **kwargs)
                     answer = _answer_text(response)
                     hit = is_hit(answer, h.answer_key)
                     record = {

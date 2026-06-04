@@ -1,8 +1,8 @@
 """Context-rot runner tests (Phase 1.0).
 
 Unit tests are offline (DI'd fakes — no API). One slow test exercises the real
-Anthropic API to verify tool_call_stream messages are accepted (the tools-param
-gotcha) and the needle is found in an easy case.
+Anthropic API to verify tool_call_stream history is accepted (no tools param
+needed) and the needle is found in an easy case.
 """
 
 from __future__ import annotations
@@ -12,10 +12,8 @@ from typing import Any
 
 import pytest
 
-from stance.rot.haystack import build_haystack
 from stance.rot.runner import (
     _answer_text,
-    _tools_for,
     accuracy_by_length,
     load_records,
     passband_knee,
@@ -103,21 +101,6 @@ def test_run_cell_skips_over_limit(tmp_path: Any) -> None:
     assert not out.exists() or load_records(out) == []
 
 
-def test_tools_for_clean_vs_stream() -> None:
-    essay = build_haystack(
-        structure="clean_essay", competition="neutral", similarity="high",
-        target_tokens=500, depth=0.5, seed=1, filler_sentences=FILLER,
-    )
-    assert _tools_for(essay.messages) == []  # no tool_use in essay
-
-    stream = build_haystack(
-        structure="tool_call_stream", competition="neutral", similarity="high",
-        target_tokens=800, depth=0.5, seed=1,
-    )
-    tools = _tools_for(stream.messages)
-    assert tools and all("input_schema" in t for t in tools)
-
-
 def test_answer_text_handles_object_and_dict_blocks() -> None:
     obj = SimpleNamespace(
         content=[SimpleNamespace(type="text", text="hello "), SimpleNamespace(type="tool_use")]
@@ -152,7 +135,7 @@ def test_passband_knee_full_passband() -> None:
 @pytest.mark.slow
 @pytest.mark.skipif(not has_anthropic_key(), reason="ANTHROPIC_API_KEY not in .env")
 def test_real_api_tool_stream_accepted(tmp_path: Any) -> None:
-    """Verify the real API accepts tool_call_stream history (tools-param gotcha)
+    """Verify the real API accepts tool_call_stream history without a tools param
     and finds the needle in an easy case. Burns ~$0.001."""
     import anthropic
 
