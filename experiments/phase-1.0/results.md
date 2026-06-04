@@ -85,6 +85,29 @@ its entity among competitors), expressed as **confabulation** (Haiku) or **refus
 (Sonnet lenient collapses too: diffuse `0.44 → 0.33 → 0.11 → 0.11 → 0.00` — the key
 string often does not appear at all. Full table via `score.py`.)
 
+### Position (depth) and roll-off slope
+
+**Depth decomposition (Haiku committed, by needle depth 0.1 / 0.5 / 0.9):** the diffuse
+collapse is **uniform across needle position** — at 20k+ all three depths are 0
+together (Δ ≤ 0.20 at every length). The larger spreads in the *neutral* arm (up to
+Δ0.40–0.80 at 2–10k) are not a monotone middle-penalty (the worst depth moves around
+by length) — they're small-N noise (n=5/cell) plus the folio wrinkle. **No systematic
+position effect**, consistent with Chroma's no-NIAH-position-effect → the collapse is
+*competition*-driven, not *position*-driven.
+
+**Slope — the §5.2 third parameter** (Δ committed-accuracy per 10× tokens, OLS on
+log₁₀ length):
+
+| model | neutral | localized | diffuse |
+|---|---:|---:|---:|
+| Haiku 4.5 | −0.015 | −0.070 | **−0.572** |
+| Sonnet 4.6 | −0.177 | −0.094 | **−0.378** |
+
+Diffuse rolls off ~8× steeper than localized and ~38× steeper than neutral (Haiku) —
+the quantitative form of "competition, not length." (Sonnet's neutral slope is steeper
+and noisier: n=9, only to 20k, and the low-sim ceiling depresses the short end; the
+diffuse-is-steepest ordering holds.)
+
 ## Findings vs. the pre-registration (§3.6, locked 2026-06-03)
 
 - **P1 (diffuse > neutral; gap widens with L) — CONFIRMED, strongly.** Diffuse collapses
@@ -168,6 +191,13 @@ diffuse collapse independently.
   explicit `UNKNOWN` affordance may inflate Sonnet's refusal rate (control test pending).
 - **Single structure/similarity:** `tool_call_stream` × low-sim only. `research_doc_stream`
   and high-sim, and cross-provider (DeepSeek) replication, are deferred to next phase.
+- **Clean-essay baseline (harness-validation step) not reported.** The early
+  `clean_essay` runs predate the answer-recording + concise-prompt fixes (no `answer`
+  field; unknown `max_tokens`/`system` regime — same contaminated era as the deleted
+  stale Sonnet file), so their `hit` values may be §0.11 truncation artifacts and can't
+  be committed/lenient re-scored. The "clean plateau exists; distractors shrink it"
+  Chroma-reproduction check therefore needs a small clean re-run (~$3–7) or folding into
+  the `research_doc_stream` run — **logged as Phase 1.0 open item, not closed here.**
 
 ## Reproducibility
 
