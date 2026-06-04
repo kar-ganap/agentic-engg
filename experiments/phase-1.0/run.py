@@ -57,13 +57,19 @@ def _summarize(cell: cfg.Cell) -> None:
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--item", help="only cells for this backlog item (e.g. 2)")
+    p.add_argument("--competition", help="only cells with this competition (neutral/localized/diffuse)")
     p.add_argument("--go", action="store_true", help="actually run (else dry-run)")
     p.add_argument("--summarize", action="store_true", help="summarize existing runs and exit")
     p.add_argument("--max-seeds", type=int, default=None, help="use only the first N seeds")
     p.add_argument("--model", default=cfg.MODEL_PRIMARY)
     args = p.parse_args()
 
-    cells = [c for c in cfg.CELLS if args.item is None or c.item == args.item]
+    cells = [
+        c
+        for c in cfg.CELLS
+        if (args.item is None or c.item == args.item)
+        and (args.competition is None or c.competition == args.competition)
+    ]
     seeds = list(cfg.SEEDS[: args.max_seeds]) if args.max_seeds else list(cfg.SEEDS)
 
     if args.summarize:
