@@ -66,6 +66,7 @@ def main() -> None:
     p.add_argument("--go", action="store_true", help="actually run (else dry-run)")
     p.add_argument("--summarize", action="store_true", help="summarize existing runs and exit")
     p.add_argument("--max-seeds", type=int, default=None, help="use only the first N seeds")
+    p.add_argument("--max-len", type=int, default=None, help="cap target length (tokens)")
     p.add_argument("--model", default=cfg.MODEL_PRIMARY)
     args = p.parse_args()
 
@@ -76,15 +77,16 @@ def main() -> None:
         and (args.competition is None or c.competition == args.competition)
     ]
     seeds = list(cfg.SEEDS[: args.max_seeds]) if args.max_seeds else list(cfg.SEEDS)
+    lengths = [n for n in cfg.LENGTHS if args.max_len is None or n <= args.max_len]
 
     if args.summarize:
         for c in cells:
             _summarize(c, args.model)
         return
 
-    runs = len(cells) * len(cfg.LENGTHS) * len(cfg.DEPTHS) * len(seeds)
+    runs = len(cells) * len(lengths) * len(cfg.DEPTHS) * len(seeds)
     est = (
-        len(cells) * len(cfg.DEPTHS) * len(seeds) * sum(cfg.LENGTHS)
+        len(cells) * len(cfg.DEPTHS) * len(seeds) * sum(lengths)
         / 1_000_000
         * cfg.INPUT_USD_PER_MTOK
     )
@@ -120,7 +122,7 @@ def main() -> None:
             competition=c.competition,
             similarity=c.similarity,
             model=args.model,
-            lengths=cfg.LENGTHS,
+            lengths=lengths,
             depths=cfg.DEPTHS,
             seeds=seeds,
             complete_fn=complete,
