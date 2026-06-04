@@ -60,6 +60,22 @@ def test_run_cell_writes_one_record_per_run(tmp_path: Any) -> None:
     assert {r["target_tokens"] for r in recs} == {500, 1000}
 
 
+def test_run_cell_passes_system_prompt(tmp_path: Any) -> None:
+    calls: list[dict[str, Any]] = []
+
+    def _spy(**kw: Any) -> SimpleNamespace:
+        calls.append(kw)
+        return SimpleNamespace(content=[{"type": "text", "text": "QX-7793-LK"}])
+
+    run_cell(
+        structure="clean_essay", competition="neutral", similarity="high", model="m",
+        lengths=[500], depths=[0.5], seeds=[1],
+        complete_fn=_spy, count_fn=_fake_count, out_path=tmp_path / "r.jsonl",
+        filler_sentences=FILLER, system="ANSWER CONCISELY",
+    )
+    assert calls and calls[0]["system"] == "ANSWER CONCISELY"
+
+
 def test_run_cell_scores_misses(tmp_path: Any) -> None:
     out = tmp_path / "r.jsonl"
     run_cell(

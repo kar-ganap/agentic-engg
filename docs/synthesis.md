@@ -442,6 +442,10 @@ So diffuse carries a **length-coupled noise term localized lacks** → faster `w
 2. **§3.6 sidesteps it** by defining the coherence axis ourselves (content+length constant, vary only order). This turns the gap into an asset — a clean re-derivation *disambiguates* what Chroma left open (see strengthened contribution pitch).
 3. **Optional escalation:** Chroma's released code/data (if available — they typically release) would resolve A vs. B definitively; primary artifact > prose. Not required since we sidestep.
 
+**Validation spot-checks (de-risk the finding before leaning on it):**
+- *Sonnet spot-check* — re-run the key cell (diffuse) on a stronger model (Sonnet 4.6). Per §0.8, confirms the *mechanism* transfers and calibrates how the knee shifts with capability (expected: later than Haiku's ~55k, possibly off-chart within 110k). NOT a magnitude claim.
+- *Realism spot-check* — re-run diffuse near the knee with **LLM-generated** competitor lines instead of templated ones, to confirm the rot isn't an artifact of templated content (construct validity). One-cell, ~$2. (Filed 2026-06-04 — had been discussed but not recorded.)
+
 → Phase 1.0 exercise 1 (sharpened). Candidate Property-4 contribution (see `tasks/contribution-candidates.md`).
 
 ### §3.7 — Does tool-result clearing recover the agentic free budget? (failure-preserving vs. blanket)

@@ -196,6 +196,23 @@ def test_neutral_op_variety() -> None:
     assert len(names) >= 5  # varied tool types, not a single repeated template
 
 
+def test_competitor_pool_overrides_templates() -> None:
+    pool = ["POOL-COMPETITOR-ALPHA.", "POOL-COMPETITOR-BETA."]
+    h = build_haystack(
+        structure="tool_call_stream", competition="diffuse", similarity="low",
+        target_tokens=2000, depth=0.5, seed=1, diffuse_density=0.5, competitor_pool=pool,
+    )
+    # Competitor tool_results come from the pool, not the templated generator.
+    results = [
+        m["content"][0]["content"]
+        for m in h.messages
+        if isinstance(m["content"], list) and m["content"][0].get("type") == "tool_result"
+    ]
+    pool_hits = [r for r in results if r in pool]
+    assert pool_hits, "expected pool-sourced competitors"
+    assert not any("catalog number for the" in r.lower() for r in results if r in pool)
+
+
 def test_research_doc_stream_not_yet_implemented() -> None:
     with pytest.raises(NotImplementedError):
         build_haystack(

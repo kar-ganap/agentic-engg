@@ -95,6 +95,12 @@ def _gen_competitor(rng: random.Random, same_item_prob: float = 0.25) -> str:
     return rng.choice(_OTHER_ITEM_PHRASINGS).format(v=rng.choice(_ITEM_NAMES), c=_gen_code(rng))
 
 
+def _competitor(rng: random.Random, pool: Sequence[str] | None) -> str:
+    """A diffuse competitor — sampled from `pool` if given (realism spot-check),
+    else generated from templates via _gen_competitor."""
+    return rng.choice(list(pool)) if pool else _gen_competitor(rng)
+
+
 def _est_tokens(text: str) -> int:
     """Cheap char/4 token estimate (API-free; runner records the exact count)."""
     return len(text) // 4
@@ -129,8 +135,14 @@ def build_haystack(
     filler_sentences: Sequence[str] | None = None,
     n_distractors: int = 4,
     diffuse_density: float = 0.3,
+    competitor_pool: Sequence[str] | None = None,
 ) -> Haystack:
-    """Build a haystack. See module docstring + synthesis §3.6 for the axes."""
+    """Build a haystack. See module docstring + synthesis §3.6 for the axes.
+
+    `competitor_pool`: if given, diffuse competitors are sampled from this pool
+    (e.g. LLM-generated lines) instead of the templated generator — used by the
+    realism spot-check (synthesis §3.6) to confirm rot isn't a templated artifact.
+    """
     if structure == "clean_essay":
         return _build_essay(
             competition=competition,
@@ -141,6 +153,7 @@ def build_haystack(
             filler_sentences=filler_sentences,
             n_distractors=n_distractors,
             diffuse_density=diffuse_density,
+            competitor_pool=competitor_pool,
         )
     if structure == "tool_call_stream":
         return _build_tool_stream(
@@ -151,6 +164,7 @@ def build_haystack(
             seed=seed,
             n_distractors=n_distractors,
             diffuse_density=diffuse_density,
+            competitor_pool=competitor_pool,
         )
     if structure == "research_doc_stream":
         raise NotImplementedError("structure='research_doc_stream' lands in backlog item 5")
@@ -167,6 +181,7 @@ def _build_essay(
     filler_sentences: Sequence[str] | None,
     n_distractors: int,
     diffuse_density: float,
+    competitor_pool: Sequence[str] | None = None,
 ) -> Haystack:
     if not filler_sentences:
         raise ValueError("clean_essay requires non-empty filler_sentences")
@@ -177,12 +192,12 @@ def _build_essay(
     filler = list(filler_sentences)
 
     # Assemble filler units (sentences) up to the target estimate. In `diffuse`,
-    # a `diffuse_density` fraction of units are vault-domain competitors.
+    # a `diffuse_density` fraction of units are catalog-domain competitors.
     units: list[str] = []
     n_competitors = 0
     while _est_tokens(" ".join(units)) < target_tokens:
         if competition == "diffuse" and rng.random() < diffuse_density:
-            units.append(_gen_competitor(rng))
+            units.append(_competitor(rng, competitor_pool))
             n_competitors += 1
         else:
             units.append(rng.choice(filler))
@@ -300,6 +315,7 @@ def _build_tool_stream(
     seed: int,
     n_distractors: int,
     diffuse_density: float,
+    competitor_pool: Sequence[str] | None = None,
 ) -> Haystack:
     if competition not in ("neutral", "localized", "diffuse"):
         raise ValueError(f"unknown competition: {competition!r}")
@@ -307,15 +323,15 @@ def _build_tool_stream(
     question = _question_for(similarity)
 
     # Assemble (tool, query, result) units up to the target estimate. In
-    # `diffuse`, a `diffuse_density` fraction of results are vault-domain
-    # competitors (incl. same-vault distractors via _gen_competitor).
+    # `diffuse`, a `diffuse_density` fraction of results are catalog-domain
+    # competitors (templated, or sampled from competitor_pool if given).
     units: list[tuple[str, str, str]] = []
     n_competitors = 0
     est = _est_tokens(_INITIAL_TASK) + _est_tokens(question)
     while est < target_tokens:
         if competition == "diffuse" and rng.random() < diffuse_density:
             name, query = _lookup_op(rng)
-            text = _gen_competitor(rng)
+            text = _competitor(rng, competitor_pool)
             n_competitors += 1
         else:
             name, query, text = _gen_neutral_op(rng)

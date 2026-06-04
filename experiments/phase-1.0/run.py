@@ -37,12 +37,17 @@ REPO = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO / "runs" / "phase-1.0"
 
 
-def _cell_path(cell: cfg.Cell) -> Path:
-    return OUT_DIR / f"{cell.structure}__{cell.competition}__{cell.similarity}.jsonl"
+def _model_tag(model: str) -> str:
+    return model.removeprefix("claude-")
 
 
-def _summarize(cell: cfg.Cell) -> None:
-    path = _cell_path(cell)
+def _cell_path(cell: cfg.Cell, model: str) -> Path:
+    tag = _model_tag(model)
+    return OUT_DIR / f"{cell.structure}__{cell.competition}__{cell.similarity}__{tag}.jsonl"
+
+
+def _summarize(cell: cfg.Cell, model: str) -> None:
+    path = _cell_path(cell, model)
     if not path.exists():
         print(f"  (no results yet: {path.name})")
         return
@@ -74,7 +79,7 @@ def main() -> None:
 
     if args.summarize:
         for c in cells:
-            _summarize(c)
+            _summarize(c, args.model)
         return
 
     runs = len(cells) * len(cfg.LENGTHS) * len(cfg.DEPTHS) * len(seeds)
@@ -107,7 +112,7 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     total = 0
     for c in cells:
-        path = _cell_path(c)
+        path = _cell_path(c, args.model)
         if path.exists():
             path.unlink()  # fresh run per cell (avoid append-dup on re-run)
         n = run_cell(
@@ -125,7 +130,7 @@ def main() -> None:
         )
         total += n
         print(f"\n[{c.structure} {c.competition} sim={c.similarity}] {n} runs -> {path.name}")
-        _summarize(c)
+        _summarize(c, args.model)
     print(f"\ntotal runs: {total}")
 
 

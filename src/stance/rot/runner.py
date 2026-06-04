@@ -26,6 +26,14 @@ _GENERIC_TOOL_SCHEMA: dict[str, Any] = {
     "required": ["query"],
 }
 
+# Forces a concise, scoreable answer — without it, verbose/cautious models bury or
+# withhold the needle and a binary substring scorer mis-reads formatting as
+# retrieval failure (lessons §0.11; caught by the Sonnet spot-check).
+ANSWER_SYSTEM = (
+    "You are answering a factual lookup. Reply with ONLY the exact catalog "
+    "number requested, and nothing else. If it is not present, reply UNKNOWN."
+)
+
 
 def _tools_for(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Minimal `tools` param covering every tool_use name in the history.
@@ -77,8 +85,9 @@ def run_cell(
     filler_sentences: Sequence[str] | None = None,
     n_distractors: int = 4,
     diffuse_density: float = 0.3,
-    max_tokens: int = 64,
+    max_tokens: int = 256,
     max_input_tokens: int = 190_000,
+    system: str | None = ANSWER_SYSTEM,
 ) -> int:
     """Run one condition's full (length x depth x seed) sweep; append JSONL.
 
@@ -86,6 +95,10 @@ def run_cell(
     exceeds `max_input_tokens` (margin under the 200k context limit) are SKIPPED
     rather than sent — a safety net against estimate drift; skips are surfaced
     via a printed warning (never silent).
+
+    `system` defaults to ANSWER_SYSTEM, which forces a concise answer so the
+    deterministic scorer measures retrieval, not verbosity/truncation (lessons
+    §0.11). `max_tokens` is well above the answer length for the same reason.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
     n = 0
@@ -106,6 +119,8 @@ def run_cell(
                         diffuse_density=diffuse_density,
                     )
                     kwargs: dict[str, Any] = {"model": model, "messages": h.messages}
+                    if system:
+                        kwargs["system"] = system
                     tools = _tools_for(h.messages)
                     if tools:
                         kwargs["tools"] = tools
@@ -113,8 +128,15 @@ def run_cell(
                     if exact_tokens > max_input_tokens:
                         skipped += 1
                         continue
-                    response = complete_fn(max_tokens=max_tokens, **kwargs)
-                    hit = is_hit(_answer_text(response), h.answer_key)
+                    create_kwargs = dict(kwargs)
+                    if tools:
+                        # Declare tools so the tool_use history validates, but FORBID
+                        # calling them — else the model "searches" instead of
+                        # answering from context (lessons §0.11).
+                        create_kwargs["tool_choice"] = {"type": "none"}
+                    response = complete_fn(max_tokens=max_tokens, **create_kwargs)
+                    answer = _answer_text(response)
+                    hit = is_hit(answer, h.answer_key)
                     record = {
                         "structure": structure,
                         "competition": competition,
@@ -125,6 +147,7 @@ def run_cell(
                         "depth": depth,
                         "seed": seed,
                         "hit": hit,
+                        "answer": answer[:300],  # for offline re-scoring + audit (§0.11)
                         "needle_position": h.metadata["needle_position"],
                         "n_competitors": h.metadata["n_competitors"],
                     }
