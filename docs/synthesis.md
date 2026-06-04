@@ -445,6 +445,7 @@ So diffuse carries a **length-coupled noise term localized lacks** → faster `w
 **Validation spot-checks (de-risk the finding before leaning on it):**
 - *Sonnet spot-check* — re-run the key cell (diffuse) on a stronger model (Sonnet 4.6). Per §0.8, confirms the *mechanism* transfers and calibrates how the knee shifts with capability (expected: later than Haiku's ~55k, possibly off-chart within 110k). NOT a magnitude claim.
 - *Realism spot-check* — re-run diffuse near the knee with **LLM-generated** competitor lines instead of templated ones, to confirm the rot isn't an artifact of templated content (construct validity). One-cell, ~$2. (Filed 2026-06-04 — had been discussed but not recorded.)
+- *Cross-provider replication (DeepSeek V4) — deferred* — replicate the diffuse-rot finding on a non-Anthropic model family to test §0.8 (mechanism transfers; magnitudes don't) and counter the Anthropic selection bias. Requires a provider adapter (OpenAI-format messages; token counting without a count_tokens endpoint) + re-validating the measurement on DeepSeek's behavior. Also the cheap workhorse for large future sweeps. Do AFTER the clean Claude P1/P2 is locked. (Filed 2026-06-04.)
 
 → Phase 1.0 exercise 1 (sharpened). Candidate Property-4 contribution (see `tasks/contribution-candidates.md`).
 
