@@ -78,13 +78,18 @@ def run_cell(
     n_distractors: int = 4,
     diffuse_density: float = 0.3,
     max_tokens: int = 64,
+    max_input_tokens: int = 190_000,
 ) -> int:
     """Run one condition's full (length x depth x seed) sweep; append JSONL.
 
-    Returns the number of runs executed.
+    Returns the number of runs executed (written). Runs whose built haystack
+    exceeds `max_input_tokens` (margin under the 200k context limit) are SKIPPED
+    rather than sent — a safety net against estimate drift; skips are surfaced
+    via a printed warning (never silent).
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
     n = 0
+    skipped = 0
     with out_path.open("a", encoding="utf-8") as f:
         for length in lengths:
             for depth in depths:
@@ -105,6 +110,9 @@ def run_cell(
                     if tools:
                         kwargs["tools"] = tools
                     exact_tokens = count_fn(**kwargs)
+                    if exact_tokens > max_input_tokens:
+                        skipped += 1
+                        continue
                     response = complete_fn(max_tokens=max_tokens, **kwargs)
                     hit = is_hit(_answer_text(response), h.answer_key)
                     record = {
@@ -123,6 +131,11 @@ def run_cell(
                     f.write(json.dumps(record, sort_keys=True) + "\n")
                     f.flush()
                     n += 1
+    if skipped:
+        print(
+            f"  WARNING: skipped {skipped} run(s) over {max_input_tokens} input tokens "
+            f"({structure}/{competition}/{similarity})"
+        )
     return n
 
 

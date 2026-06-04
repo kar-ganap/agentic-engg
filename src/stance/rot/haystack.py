@@ -219,8 +219,13 @@ def _build_essay(
 
 # --- tool_call_stream materials (Phase 1.0 backlog item 3 — agentic structure) ---
 _INITIAL_TASK = "Catalog the archive's holdings and note anything that needs attention."
-# Est. tokens for the tool_use/tool_result JSON wrappers + query, per pair.
-_PAIR_OVERHEAD_TOKENS = 20
+# Est. tokens for the tool_use/tool_result JSON wrappers, per pair. Calibrated
+# against a real run: the original value of 20 undercounted badly (a 100k-TARGET
+# stream built to ~205k actual tokens, breaching the 200k context limit), because
+# each pair's JSON structure (role/content/type/id/name/input + tool_result
+# wrapper) tokenizes to ~50-60 tokens. ~60 keeps target ≈ actual so cross-
+# structure comparison (essay vs. stream at the same target) is honest.
+_PAIR_OVERHEAD_TOKENS = 60
 
 # Neutral operations (tool, query, result template) across varied tool types —
 # realistic *moderate* diversity: enough to avoid an artificial §1.7 template-rut,
@@ -315,7 +320,7 @@ def _build_tool_stream(
         else:
             name, query, text = _gen_neutral_op(rng)
         units.append((name, query, text))
-        est += _est_tokens(text) + _PAIR_OVERHEAD_TOKENS
+        est += _est_tokens(query) + _est_tokens(text) + _PAIR_OVERHEAD_TOKENS
 
     if competition == "localized":
         for distractor in rng.sample(DISTRACTORS, k=min(n_distractors, len(DISTRACTORS))):
@@ -341,7 +346,7 @@ def _build_tool_stream(
     est_tokens = (
         _est_tokens(_INITIAL_TASK)
         + _est_tokens(question)
-        + sum(_est_tokens(t) + _PAIR_OVERHEAD_TOKENS for _, _, t in units)
+        + sum(_est_tokens(q) + _est_tokens(t) + _PAIR_OVERHEAD_TOKENS for _, q, t in units)
     )
     return Haystack(
         messages=messages,

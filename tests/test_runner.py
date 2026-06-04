@@ -71,6 +71,22 @@ def test_run_cell_scores_misses(tmp_path: Any) -> None:
     assert load_records(out)[0]["hit"] is False
 
 
+def test_run_cell_skips_over_limit(tmp_path: Any) -> None:
+    out = tmp_path / "r.jsonl"
+
+    def _huge_count(**_kw: Any) -> int:
+        return 999_999  # always over the limit
+
+    n = run_cell(
+        structure="clean_essay", competition="neutral", similarity="high", model="m",
+        lengths=[500], depths=[0.5], seeds=[1],
+        complete_fn=_hit_response, count_fn=_huge_count, out_path=out,
+        filler_sentences=FILLER, max_input_tokens=190_000,
+    )
+    assert n == 0  # the single over-limit run was skipped, not sent
+    assert not out.exists() or load_records(out) == []
+
+
 def test_tools_for_clean_vs_stream() -> None:
     essay = build_haystack(
         structure="clean_essay", competition="neutral", similarity="high",
