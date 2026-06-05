@@ -59,6 +59,7 @@ def run_cell(
     filler_sentences: Sequence[str] | None = None,
     n_distractors: int = 4,
     diffuse_density: float = 0.3,
+    competitor_pool: Sequence[str] | None = None,
     max_tokens: int = 256,
     max_input_tokens: int = 190_000,
     system: str | None = ANSWER_SYSTEM,
@@ -91,6 +92,7 @@ def run_cell(
                         filler_sentences=filler_sentences,
                         n_distractors=n_distractors,
                         diffuse_density=diffuse_density,
+                        competitor_pool=competitor_pool,
                     )
                     # NO tools param: tool_use history is accepted without it, and
                     # omitting tools means the model CANNOT "search" — it must answer
@@ -129,6 +131,9 @@ def run_cell(
                         "system": system,
                         "diffuse_density": diffuse_density,
                         "n_distractors": n_distractors,
+                        # 0 = templated competitors; >0 = sampled from a pinned pool
+                        # (realism check). Provenance of the pool is in the filename tag.
+                        "competitor_pool_size": len(competitor_pool) if competitor_pool else 0,
                         "needle_position": h.metadata["needle_position"],
                         "n_competitors": h.metadata["n_competitors"],
                     }

@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -41,13 +42,14 @@ def _model_tag(model: str) -> str:
     return model.removeprefix("claude-")
 
 
-def _cell_path(cell: cfg.Cell, model: str) -> Path:
+def _cell_path(cell: cfg.Cell, model: str, pool_tag: str = "") -> Path:
     tag = _model_tag(model)
-    return OUT_DIR / f"{cell.structure}__{cell.competition}__{cell.similarity}__{tag}.jsonl"
+    suffix = f"__{pool_tag}" if pool_tag else ""  # keeps realism runs in their own file
+    return OUT_DIR / f"{cell.structure}__{cell.competition}__{cell.similarity}__{tag}{suffix}.jsonl"
 
 
-def _summarize(cell: cfg.Cell, model: str) -> None:
-    path = _cell_path(cell, model)
+def _summarize(cell: cfg.Cell, model: str, pool_tag: str = "") -> None:
+    path = _cell_path(cell, model, pool_tag)
     if not path.exists():
         print(f"  (no results yet: {path.name})")
         return
@@ -69,7 +71,20 @@ def main() -> None:
     p.add_argument("--max-seeds", type=int, default=None, help="use only the first N seeds")
     p.add_argument("--max-len", type=int, default=None, help="cap target length (tokens)")
     p.add_argument("--model", default=cfg.MODEL_PRIMARY)
+    p.add_argument(
+        "--competitor-pool",
+        help="path to a pinned JSON pool of competitor lines (realism check); "
+        "diffuse competitors are sampled from it instead of templated. Output goes "
+        "to a pool-tagged file so it never overwrites the templated run.",
+    )
     args = p.parse_args()
+
+    pool: list[str] | None = None
+    pool_tag = ""
+    if args.competitor_pool:
+        pool_path = Path(args.competitor_pool)
+        pool = json.loads(pool_path.read_text())["competitors"]
+        pool_tag = pool_path.stem  # e.g. realism_v1 → distinguishes the output file
 
     cells = [
         c
@@ -116,7 +131,7 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     total = 0
     for c in cells:
-        path = _cell_path(c, args.model)
+        path = _cell_path(c, args.model, pool_tag)
         if path.exists():
             path.unlink()  # fresh run per cell (avoid append-dup on re-run)
         n = run_cell(
@@ -131,10 +146,11 @@ def main() -> None:
             count_fn=count,
             out_path=path,
             filler_sentences=filler if c.structure == "clean_essay" else None,
+            competitor_pool=pool,
         )
         total += n
         print(f"\n[{c.structure} {c.competition} sim={c.similarity}] {n} runs -> {path.name}")
-        _summarize(c, args.model)
+        _summarize(c, args.model, pool_tag)
     print(f"\ntotal runs: {total}")
 
 
