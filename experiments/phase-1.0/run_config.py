@@ -23,7 +23,11 @@ MODEL_PRIMARY = "claude-haiku-4-5-20251001"  # bulk runs (rots early/cheap)
 MODEL_VALIDATION = "claude-sonnet-4-6"  # spot-checks of key points only
 
 # --- budget ---------------------------------------------------------------
-BUDGET_USD = 50.0
+# Soft cap, lifted 50->75 on 2026-06-04: the Phase 1.0 close batch (clean-essay
+# baseline + realism spot-check + Exercise B) lands cumulative ~$53-55; headroom
+# kept. Soft = a dry-run warning, not a hard stop. Actual spend tracked exactly
+# (via response.usage) in tasks/spend.md.
+BUDGET_USD = 75.0
 # Rough Haiku-tier input price; VERIFY against current pricing before the run.
 INPUT_USD_PER_MTOK = 1.0
 
