@@ -75,7 +75,7 @@ def build_tools(count_fn: Callable[..., int], model: str, target: int = TOOLS_TA
                     "required": ["query"],
                 },
             }
-            for i in range(4)
+            for i in range(8)  # ≥ turns, so tool-rotation never cycles within a run
         ]
 
     n_pad = 4
@@ -150,7 +150,7 @@ def usage_dict(response: Any) -> dict[str, int]:
 
 
 def run_policy(
-    name: str,
+    label: str,
     *,
     turns: int,
     model: str,
@@ -158,17 +158,25 @@ def run_policy(
     system: str,
     complete_fn: Callable[..., Any],
     logger: BudgetLogger,
+    anti: str | None = None,
     restore_at: int | None = None,
     max_tokens: int = 16,
 ) -> list[dict[str, Any]]:
     """Run one policy for `turns` back-to-back calls; log per-turn usage + cost.
 
-    `restore_at`: if set, turns ≥ it switch to `stable` (the restore arm).
+    `label` names the run in the log (e.g. "restore"); `anti` is the anti-pattern
+    policy actually applied (defaults to `label`). `restore_at`: if set, turns ≥ it
+    switch to `stable` (the restore arm uses label="restore", anti="tool_reorder").
     """
+    anti = anti or label
+    # Per-policy nonce in the system prefix isolates each condition's server-side
+    # cache: without it the shared 5-min cache bleeds across policies (identical
+    # canonical tools / rotations / history collide), spuriously inflating hits.
+    nonced_system = f"[run:{label}] {system}"
     records: list[dict[str, Any]] = []
     for t in range(turns):
-        active = "stable" if (restore_at is not None and t >= restore_at) else name
-        sys_, tools_, msgs_ = POLICIES[active](t, tools, system, _history(t))
+        active = "stable" if (restore_at is not None and t >= restore_at) else anti
+        sys_, tools_, msgs_ = POLICIES[active](t, tools, nonced_system, _history(t))
         payload = with_cache_breakpoints(system=sys_, tools=tools_, messages=msgs_)
         resp = complete_fn(model=model, max_tokens=max_tokens, **payload)
         u = usage_dict(resp)
@@ -180,10 +188,10 @@ def run_policy(
         )
         logger.record(
             turn=t, categories={}, model=model, usage=u, cost_usd=c,
-            policy=name, active=active, hit_rate=hr,
+            policy=label, active=active, hit_rate=hr,
         )
         records.append({"turn": t, "active": active, "hit_rate": hr, "cost_usd": c, **u})
-        print(f"  [{name:16} t={t} {active:8}] read={u['cache_read_input_tokens']:>6} "
+        print(f"  [{label:16} t={t} {active:8}] read={u['cache_read_input_tokens']:>6} "
               f"create={u['cache_creation_input_tokens']:>6} hit={hr:.2f} ${c:.5f}")
     return records
 
@@ -224,7 +232,10 @@ def main() -> None:
         return
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    logger = BudgetLogger(OUT_DIR / ("pilot.jsonl" if args.pilot else "cache_run.jsonl"))
+    out_path = OUT_DIR / ("pilot.jsonl" if args.pilot else "cache_run.jsonl")
+    if out_path.exists():
+        out_path.unlink()  # fresh per run (BudgetLogger appends) → file stays canonical
+    logger = BudgetLogger(out_path)
     if args.pilot:
         logger.new_run("pilot")
         run_policy("stable", turns=3, model=args.model, tools=tools, system=system,
@@ -233,8 +244,9 @@ def main() -> None:
     for name in plan:
         logger.new_run(name)
         if name == "restore":
-            run_policy("tool_reorder", turns=2 * args.turns, model=args.model, tools=tools,
-                       system=system, complete_fn=complete, logger=logger, restore_at=args.turns)
+            run_policy("restore", turns=2 * args.turns, model=args.model, tools=tools,
+                       system=system, complete_fn=complete, logger=logger,
+                       anti="tool_reorder", restore_at=args.turns)
         else:
             run_policy(name, turns=args.turns, model=args.model, tools=tools, system=system,
                        complete_fn=complete, logger=logger)
