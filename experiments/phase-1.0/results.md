@@ -85,6 +85,29 @@ its entity among competitors), expressed as **confabulation** (Haiku) or **refus
 (Sonnet lenient collapses too: diffuse `0.44 → 0.33 → 0.11 → 0.11 → 0.00` — the key
 string often does not appear at all. Full table via `score.py`.)
 
+### Clean-essay baseline (harness validation — reproduces Chroma)
+
+Before trusting the agentic curves, we confirm the instrument reproduces the known
+clean-vs-distractor result on plain essays (Chroma's own substrate), high-sim, 5 seeds:
+
+| length | neutral-high (clean) | localized-high (distractors) |
+|-------:|---:|---:|
+| 1k–20k | 1.00 | 1.00 |
+| 50k | 1.00 | 0.93 |
+| 100k | **1.00** | **0.80** |
+
+- **Clean plateau exists:** neutral-high is a perfect 1.00 flat to 100k — the harness is
+  *not* rot-prone by construction; given clean signal it finds a full passband.
+- **Distractors shrink it:** localized-high declines to 0.80 (knee ~50k) — Chroma's
+  distractor effect reproduced.
+- **committed == lenient exactly** here → zero hedging in the easy high-sim case,
+  confirming the committed/lenient gap on `tool_call_stream` is *competition + low-sim*
+  driven, not baseline behavior.
+
+This makes the whole study a monotone gradient: **clean essay high-sim (perfect plateau)
+→ +fixed distractors (0.80@100k) → diffuse low-sim agentic (0@20k).** The instrument
+shows no rot where there shouldn't be any, which legitimizes the diffuse collapse.
+
 ### Position (depth) and roll-off slope
 
 **Depth decomposition (Haiku committed, by needle depth 0.1 / 0.5 / 0.9):** the diffuse
@@ -189,15 +212,8 @@ diffuse collapse independently.
   headline; only diffuse qualifies.
 - **§3.8 is provisional:** n=9/point, one (structure × similarity) cell, two models; the
   explicit `UNKNOWN` affordance may inflate Sonnet's refusal rate (control test pending).
-- **Single structure/similarity:** `tool_call_stream` × low-sim only. `research_doc_stream`
-  and high-sim, and cross-provider (DeepSeek) replication, are deferred to next phase.
-- **Clean-essay baseline (harness-validation step) not reported.** The early
-  `clean_essay` runs predate the answer-recording + concise-prompt fixes (no `answer`
-  field; unknown `max_tokens`/`system` regime — same contaminated era as the deleted
-  stale Sonnet file), so their `hit` values may be §0.11 truncation artifacts and can't
-  be committed/lenient re-scored. The "clean plateau exists; distractors shrink it"
-  Chroma-reproduction check therefore needs a small clean re-run (~$3–7) or folding into
-  the `research_doc_stream` run — **logged as Phase 1.0 open item, not closed here.**
+- **Single agentic structure:** `tool_call_stream` only (low-sim). `research_doc_stream`
+  and cross-provider (DeepSeek) replication are deferred to next phase.
 
 ## Reproducibility
 

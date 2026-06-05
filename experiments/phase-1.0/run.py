@@ -63,6 +63,7 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--item", help="only cells for this backlog item (e.g. 2)")
     p.add_argument("--competition", help="only cells with this competition (neutral/localized/diffuse)")
+    p.add_argument("--similarity", help="only cells with this needle-question similarity (high/low)")
     p.add_argument("--go", action="store_true", help="actually run (else dry-run)")
     p.add_argument("--summarize", action="store_true", help="summarize existing runs and exit")
     p.add_argument("--max-seeds", type=int, default=None, help="use only the first N seeds")
@@ -75,6 +76,7 @@ def main() -> None:
         for c in cfg.CELLS
         if (args.item is None or c.item == args.item)
         and (args.competition is None or c.competition == args.competition)
+        and (args.similarity is None or c.similarity == args.similarity)
     ]
     seeds = list(cfg.SEEDS[: args.max_seeds]) if args.max_seeds else list(cfg.SEEDS)
     lengths = [n for n in cfg.LENGTHS if args.max_len is None or n <= args.max_len]
