@@ -30,7 +30,7 @@
 
 **Stance:** For Anthropic-API-served agents, the `tools=[]` parameter and its tool definitions should be set once at run start and not mutated mid-loop. State-dependent tool availability should be handled in the most-recent user message (and via `tool_choice` where the API supports forcing/restricting), not via mutating `tools` or `system`.
 
-**Confidence:** 75.
+**Confidence:** 82 (raised 75→82, 2026-06-05, on own-substrate experimental confirmation of the *cache-economics* half — Phase 1.0 Exercise B). The cache argument is now measured (tools are the cache root; mutating them is the worst anti-pattern); the *model-coherence* half remains literature-only (Manus), so the position isn't fully empirically closed.
 
 **Preconditions (where this position is meant to apply):**
 - **Pivot:** Inference uses KV-cache (Anthropic API, vLLM with caching, etc.) AND agent operates over ≥3 multi-turn iterations with shared prefix.
@@ -383,6 +383,14 @@ Vary rewrite interval (every turn / every 5 / every 10 / never); measure token c
 Implement controlled regressions: timestamp injection into system prompt, tools mutation mid-loop, content-shape mixing (string vs. block-list). Measure cache-hit-rate degradation.
 
 → Phase 1.0 exercise 4 (KV-cache instrumentation). Resolves several sub-claims of §1.1.
+
+**OUTCOME (2026-06-05, `experiments/phase-1.0/results-exercise-B.md`) — CONFIRMED and sharpened.** All three regressions degrade cache hit-rate, and the effect is a **positional cost gradient** set by the documented `tools → system → messages` hierarchy (a change invalidates that level + all after): steady-state `cache_read` = the prefix fraction *before* the perturbed level. Haiku 4.5, matched ~9k context:
+- **tool_reorder (tools root):** cache_read ≈ 0 → **7.0× stable cost** (worst).
+- **timestamp_system (system):** cache_read ≈ tools → 4.1×.
+- **shape_mix (messages):** cache_read ≈ tools+system → 3.0×.
+- **restore:** reverting to a stable prefix recovers the hit rate within ~2 turns (transient damage; isolation-limited — see results doc).
+
+Resolves the **cache-economics** sub-claim of §1.1 (→ §1.1 75→82). Stronger than the original "degradation" prediction: it's a *quantified, mechanistic* gradient. Measurement caveat: the shared 5-min server cache bleeds across conditions (the `tools` root especially) → per-condition content isolation is needed (lessons §0.14).
 
 ### §3.4 — Failure-shaped padding vs. random padding in context-rot curve
 

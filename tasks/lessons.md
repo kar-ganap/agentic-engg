@@ -67,6 +67,14 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 - **Never call a value a plateau without data past the knee.** Extend the sweep until the curve is flat or zero; a single mid-curve point is a way-station, not a floor. (Cheap to check; expensive to get wrong in the synthesis.)
 - Corollary to §0.7: a re-pointable evaluator makes "match composition / extend length" a one-flag re-run, not a rebuild.
 
+### §0.14 — Conditions that share a stateful backend (e.g. the KV-cache) must be isolated
+**Trigger:** *Without this, experimental conditions run back-to-back contaminate each other through shared server state, and you measure the bleed instead of the effect. In Exercise B the prompt cache is shared server-side for ~5 min, so five cache policies run in sequence reused each other's cached prefixes (identical canonical tools, rotations, history) — `tool_reorder` spuriously hit `stable`'s cache; `restore` hit the standalone `tool_reorder` run. Three re-runs to diagnose. With this, each condition gets a unique prefix so its cache is independent and the per-condition number is intrinsic.*
+**Operationalization:**
+- Give each condition a **unique nonce in the prompt**, and put it where it actually isolates: the cache invalidation hierarchy is `tools → system → messages`, so a `system` nonce does NOT isolate the `tools` root — to isolate fully, vary content **at or before the cache root** (a per-condition tag in a tool definition).
+- Prefer **steady-state** readings (t≥1) over t=0, which is most exposed to cross-condition warmth; and fire a condition's turns back-to-back within the TTL so *intended* within-condition caching still works.
+- General form of §0.13: any shared mutable backend (cache, rate-limit state, a warmed model, a DB) is a hidden second factor; isolate it or measure it.
+- Cost note: the cache also makes the experiment cheap (reads at 0.1×) — isolation doesn't change that, it just makes the numbers mean what you think.
+
 ---
 
 ## Phase-specific notes (chronological)
