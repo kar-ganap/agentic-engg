@@ -64,6 +64,9 @@ reproducibility**):
 | claude-haiku-4-5 | 1.00 | 5.00 | 1.25 | 0.10 |
 | claude-sonnet-4-6 | 3.00 | 15.00 | 3.75 | 0.30 |
 
+*Multipliers (write 1.25×/5m, 2×/1h, read 0.1×) are docs-confirmed 2026-06-05. The
+**base** input/output $/MTok above are from memory — verify per-model before the run.*
+
 `cost = input·p_in + output·p_out + cache_creation·p_write + cache_read·p_read`
 (all per token). Cache-hit rate = `cache_read / (cache_read + cache_creation + input)`.
 
@@ -72,8 +75,9 @@ reproducibility**):
 - **`src/stance/instrumentation/pricing.py`** (NEW) — price table + `cost(usage,
   model)` pure function. Fully unit-tested (no API).
 - **`src/stance/context.py`** (extend) — place ephemeral `cache_control`
-  breakpoints (after system, after tools); helper to assemble messages with
-  breakpoints. Surface which blocks carry a breakpoint.
+  breakpoints **after tools, after system, and at end-of-history (moving)** — 3 of
+  the 4 allowed; required to resolve the per-level gradient. Helper to assemble
+  messages with breakpoints; surface which blocks carry one.
 - **`src/stance/instrumentation/token_budget.py`** (extend) — record the four
   `usage` fields + computed `cost` per turn (alongside the existing category
   snapshot); add `cache_read`/`cache_creation`/`input`/`output`.
@@ -82,33 +86,73 @@ reproducibility**):
   append-only JSONL. **Reuse the `tool_call_stream` haystack as the cacheable
   history** (mirrors agentic structure; no new materials).
 
-## Conditions (prefix policies — load-bearing, user sets the anti-patterns)
+## The invalidation hierarchy (docs-confirmed 2026-06-05) — drives everything
 
-| policy | perturbation | predicted hit rate |
-|---|---|---|
-| `stable` (control) | none | climbs → ~1.0 after turn 1 |
-| `timestamp_system` | changing timestamp in system | ≈0 (whole prefix invalid) |
-| `tool_reorder` | shuffle tool order each turn | only system cached |
-| `shape_mix` | vary history serialization each turn | cached up to first change |
-| `restore` | anti-pattern K turns → stable K turns | recovers within ~1 turn |
+Anthropic caches by exact prefix match; the hierarchy is **`tools → system →
+messages`**, and *"changes at each level invalidate that level and all subsequent
+levels."* So **tools is the cache root** — a tool change invalidates *everything*
+(this is the mechanistic core of §1.1, and why Manus harps on tool stability).
+Earlier mental model (system-first) was wrong; corrected here.
 
-## Pre-registration (§3.3 — lock before running)
+## Anti-pattern set ① (locked) + conditions
 
-- **P-B1:** `stable` hit rate ~0 on turn 1 (writes), then climbs to ~1.0
-  (reads); cost/turn drops sharply (cached portion at 0.1×).
-- **P-B2:** each anti-pattern floors hit rate at the *unperturbed-prefix fraction*;
-  cost/turn near full price.
-- **P-B3 (the finding):** anti-pattern cost ordering `timestamp_system` >
-  `tool_reorder` > `shape_mix` (earlier perturbation → more invalidated → costlier).
-- **P-B4:** `restore` recovers hit rate within ~1 turn (cache re-warms; damage
-  transient, not permanent).
+Set ① spans all three levels so the gradient is observable (C2/③ compaction-bridge
+optional, deferred). **3 breakpoints: after tools, after system, end-of-history
+(moving).** Multi-breakpoint is *required* — with a single end-breakpoint all
+anti-patterns full-miss and the gradient is invisible.
 
-## Gotchas (wire in)
+| policy | level perturbed | what invalidates | predicted cache_read |
+|---|---|---|---|
+| `stable` (control) | none | new turn only | ~100% of old prefix |
+| `tool_reorder` (B1) | **tools (root)** | tools+system+messages = **all** | **~0%** |
+| `timestamp_system` (A1) | system | system+messages (tools stays) | **tools/total** |
+| `shape_mix` (C1) | messages (*re-serialize ALL prior tool results*) | from first history block | **(tools+system)/total** |
+| `restore` | B1 K turns → stable K turns | re-warm | recovers by **turn 2** |
 
-- **Min cacheable length** (~1024 Haiku / up to 2048 some models) — pad
-  system+tools above ~2048 tokens or *nothing caches*.
-- **Cache TTL 5 min** — fire calls back-to-back so reads persist; the *first* call
-  always writes (creation), not reads (account for it in P-B1).
+## Pre-registration (§3.3 — lock before running; confidence omitted per author)
+
+Predictions are **computed** from the documented hierarchy + `count_tokens`-measured
+spans (not guessed). Illustrative budget `tools 4,500 / system 1,500 /
+history@10 8,000 / new 800` (exact spans measured at run time):
+
+- **P-B1 (baseline):** `stable` writes the prefix on turn 1, then `cache_read`
+  climbs toward `cached/(cached+new)` (≈94% here, **not** exactly 1.0 — the new turn
+  is always uncached). Cost/turn drops ~8×.
+- **P-B2 (cardinal — the test):** each anti-pattern's `cache_read` = the fraction of
+  the prefix *before* the perturbed level:
+
+  | anti-pattern | cache_read (of 14k) | $/turn (Haiku) | × vs stable |
+  |---|---:|---:|---:|
+  | stable | ~100% | $0.0024 | 1.0× |
+  | C1 shape_mix | ~43% (tools+system) | $0.0116 | ~4.8× |
+  | A1 timestamp | ~32% (tools) | $0.0133 | ~5.5× |
+  | B1 tool_reorder | ~0% | $0.0185 | ~7.7× |
+
+- **P-B3 (ordinal):** cost **B1 > A1 > C1 > stable** (tools-root worst). *Corrected
+  ordering* — earlier draft had A1>B1.
+- **P-B4 (restore):** hit-rate returns to stable levels by **turn 2** (turn 1
+  re-writes, turn 2+ reads) → damage is transient, not permanent.
+- **(c) deliverable, not a prediction:** report the worst-case $/turn ratio as our
+  own number vs Manus's "~10×" (climbs toward 10× as cached-prefix/new-turn grows).
+
+**Calibration (allowed; not peeking):** a 2–3 turn `stable`-only pilot to confirm
+caching *engages* on the >4,096 prefix and that the cached/new split matches
+`count_tokens`. Anti-patterns are NOT piloted — they remain genuine forecasts.
+
+## Gotchas (docs-confirmed 2026-06-05 — wire in)
+
+- **Min cacheable length = 4,096 tokens for Haiku 4.5** (1,024 for Sonnet 4.6). Below
+  this, `cache_control` is *silently ignored* — no caching, no error. **Pad
+  system+tools well above 4,096**, and **tools ≥4,096 *alone*** so the after-tools
+  breakpoint caches independently (required to separate B1 from A1).
+- **20-block lookback** — the system checks ≤20 block-boundaries per breakpoint. Keep
+  per-turn block growth ≪20 (a burst of many tool calls in one turn can blow past it
+  and silently miss the moving-history hit).
+- **Cache TTL 5 min, refreshes on each hit** — fire calls back-to-back; the *first*
+  call writes (creation), reads resume turn 2 (account for it in P-B1/P-B4). 1-hour
+  TTL exists at 2× write but we don't need it.
+- **C1 must re-serialize *all* prior tool results** (invalidate from the first history
+  block) — if it only touches the latest result it's ≈ stable and P-B2 collapses.
 - **Determinism** — caching is a server behavior; unit-test the *wiring* with DI'd
   fakes, but the hit-rate/cost numbers need the real API.
 
