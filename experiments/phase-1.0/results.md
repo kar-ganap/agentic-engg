@@ -9,18 +9,26 @@
 
 Under **diffuse** competition (the whole haystack task-related, so competitors are
 pervasive and their count scales with length — the real agentic regime), confident
-needle retrieval **collapses to zero by ~10–20k tokens (Haiku 4.5) / ~5k (Sonnet
-4.6)**. Under **neutral** (topic-unrelated filler) and **localized** (a fixed
-handful of similar-but-wrong distractors) competition, retrieval **holds a passband
-flat to 100k** — no sustained collapse. The neutral arm, where only *length* varies,
-shows **no knee through 100k** → **competition, not token count, drives context-rot
-onset.** The finding **replicates across two models**.
+needle retrieval **collapses**, while **neutral** (topic-unrelated filler) and
+**localized** (a fixed handful of similar-but-wrong distractors) competition **hold a
+passband flat to 100k** — no sustained collapse. The neutral arm, where only *length*
+varies, shows **no knee through 100k** → **competition, not token count, drives
+context-rot onset.** The finding **replicates across two models**.
+
+**The collapse *knee* is potency-dependent (robustness check, below).** With the
+templated diffuse competitors (uniform, ~75% rival *same-attribute* values) the knee is
+~10–20k (Haiku) / ~5k (Sonnet). With **LLM-generated natural-phrasing** competitors of
+mixed-but-genuine potency the knee shifts to ~50k but **still collapses** (0.20 @100k).
+So competitor *relatedness/composition* sets the *knee position*, not whether collapse
+happens — the phenomenon is robust to phrasing; the specific small budget is the
+templated case, not universal.
 
 This is direct own-substrate support for **§1.8** (signal density, not token count,
-governs rot — confidence 70→80) and confirmation of **§5.2**'s agentic-no-free-budget
-prediction. Mechanism: **discriminability loss** (the model cannot bind the needle to
-its entity among competitors), expressed as **confabulation** (Haiku) or **refusal**
-(Sonnet) — a capability-dependent failure mode logged as the new hypothesis **§3.8**.
+governs rot — confidence 70→80; the monotone potency ordering low<mixed<saturated is
+additional evidence) and confirmation of **§5.2**'s agentic-budget-collapse prediction
+(qualified: knee is potency-dependent). Mechanism: **discriminability loss** (the model
+cannot bind the needle to its entity among competitors), expressed as **confabulation**
+(Haiku) or **refusal** (Sonnet) — a capability-dependent failure mode logged as **§3.8**.
 
 ## Setup
 
@@ -195,6 +203,43 @@ genuine key-absent binding failures, robust to every detector variant). The head
 therefore not a scorer artifact: the *lenient* curve (immune to the detector) shows the
 diffuse collapse independently.
 
+## Robustness — is the collapse a templating artifact? (realism check)
+
+The diffuse competitors above are *templated* (`"the catalog number for the {X}
+manuscript is {code}"`). To test whether the collapse is an artifact of templated
+phrasing, we re-ran diffuse with **LLM-generated** competitor lines drawn from a pinned
+pool (`gen_competitor_pool.py` → `data/competitor_pools/realism_v*.json`; the run samples
+deterministically by seed, so it regenerates). Two pools, Haiku committed:
+
+| length | templated | v1 (loose prompt) | v2 (relatedness-matched) |
+|-------:|---:|---:|---:|
+| 5k | 0.67 | 1.00 | 0.80 |
+| 20k | **0.00** | **1.00** | 0.80 |
+| 50k | 0.00 | — | 0.40 |
+| 100k | 0.00 | — | **0.20** |
+
+- **v1 had *no* effect — but it was a confound, not a refutation.** Only **15%** of v1's
+  lines actually asserted a catalog number (the rest embedded the code as a manuscript
+  *ID*, or were other attributes), so v1 inadvertently *lowered relatedness*. It varied
+  realism **and** potency at once — a botched check, and a measurement lesson (hold the
+  potency axis fixed; see lessons).
+- **v2 (relatedness-matched, ~96% genuinely competing, natural phrasing) reproduces the
+  collapse — just with a later knee.** It holds ~0.80 through 20k, then declines to 0.40
+  (50k) → 0.20 (100k). So **natural-phrasing potent competition is not benign; the
+  collapse is not a templating artifact.**
+- **Composition/potency sets the *knee*, not the *floor*.** Templated (uniform, ~75%
+  rival same-attribute values): knee ~5–10k, floor 0 by 20k. v2 (natural, ~46%): knee
+  ~50k, still falling. The monotone ordering **v1 (low potency) < v2 (mixed) < templated
+  (saturated)** is clean §1.8 potency evidence.
+- **Honest correction:** an earlier read of v2-to-20k called 0.80 a "plateau." Extending
+  to 100k showed it is a *delayed collapse*, not a plateau — so the "≈10–20k free budget"
+  figure is the **templated/saturated** case, not universal.
+
+*Open (→ §5 sweep, not closed here):* v2 differs from templated in *both* composition
+(46% vs 75% potent) and phrasing (varied vs uniform), so the knee-shift isn't yet
+attributed between them. The controlled relatedness/composition sweep (§5) isolates it;
+a one-off v3 was deliberately skipped (sandbox-pull).
+
 ## Caveats / threats to validity
 
 - **Unique-string needle = retrievability ceiling.** `QX-7793-LK` is exact-matchable;
@@ -221,20 +266,30 @@ diffuse collapse independently.
 # regenerate raw runs (writes runs/phase-1.0/*.jsonl; needs ANTHROPIC_API_KEY in .env)
 uv run python experiments/phase-1.0/run.py --item 3 --competition diffuse   --go    # + neutral, localized
 uv run python experiments/phase-1.0/run.py --item 3 --competition diffuse --model claude-sonnet-4-6 --max-len 20000 --max-seeds 3 --go
+uv run python experiments/phase-1.0/run.py --item 2 --similarity high --go          # clean-essay baseline
+# realism check: regenerate the pinned pool (one LLM call) then run diffuse from it
+uv run python experiments/phase-1.0/gen_competitor_pool.py --version v2 --go
+uv run python experiments/phase-1.0/run.py --item 3 --competition diffuse --similarity low \
+    --competitor-pool data/competitor_pools/realism_v2.json --go
 # re-score (offline, no API) — prints all tables above
 uv run python experiments/phase-1.0/score.py
 ```
 
 - Pinned: models above; seeds 1–5 (Haiku) / 1–3 (Sonnet); depths {0.1,0.5,0.9};
   density 0.3; n_distractors 4. Run records are self-describing (stamp `system`,
-  `max_tokens`, `diffuse_density`, `n_distractors`, full `answer`).
-- **Cost (logged in `tasks/spend.md`):** Haiku evidence ~$15.80, Sonnet spot-check
-  ~$3.51 (reproducible regeneration cost; input-dominated).
+  `max_tokens`, `diffuse_density`, `n_distractors`, `competitor_pool_size`, full
+  `answer`). The realism pool is a **pinned artifact** (`realism_v2.json`); the run
+  samples it by seed, so it regenerates despite one LLM call.
+- **Cost (logged in `tasks/spend.md`):** Haiku evidence ~$15.80, Sonnet ~$3.51,
+  baseline ~$5.37, realism (v1+v2) ~$4 (reproducible regeneration cost; input-dominated).
 
-## Synthesis updates made (2026-06-04)
+## Synthesis updates made (2026-06-04 / -05)
 
-- **§1.8** 70→80 + retraction criterion + experimental Evidence entry.
-- **§5.2** re-promoted to own-substrate-confirmed (diffuse free budget ≈10–20k Haiku / ≈5k Sonnet).
-- **§3.6** OUTCOME block (P1 ✓ / P2 qualified / P3–P4 untested; Sonnet check done).
+- **§1.8** 70→80 + retraction criterion + experimental Evidence entry (monotone
+  potency ordering v1<v2<templated is additional support).
+- **§5.2** own-substrate-confirmed, **qualified**: the budget collapses, but the knee is
+  *potency-dependent* — ≈10–20k for templated/saturated competition, ≈50k for natural
+  mixed competition (still collapsing by 100k). The "≈10–20k" is not universal.
+- **§3.6** OUTCOME block (P1 ✓ / P2 qualified / P3–P4 untested; Sonnet + realism checks done).
 - **§3.8** new hypothesis: capability shifts failure mode (confabulate→refuse), knee earlier.
 - **§1.3** candidate architectural mechanism note (arXiv:2603.10123), held loosely.

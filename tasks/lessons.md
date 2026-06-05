@@ -56,6 +56,17 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 - **Always check the difficulty direction first.** The asymmetry's validity depends on contrived ≤ real difficulty. If the contrivance is *adversarially harder* than reality (e.g., hand-crafted worst-case distractors), the negative result is *mechanistic evidence* (the failure mode exists) but NOT a clean lower bound on real magnitude.
 - This is the formal version of Module 6 benchmark skepticism (cf. the rigorous-benchmarks paper, arXiv:2507.02825 — trivial agents scoring well = contrived positives that don't generalize). Worked example: Chroma context-rot is a *contrived negative*, which is exactly why its contrivance is acceptable (see synthesis §1.3 lower-bound note).
 
+### §0.12 — Log spend at run time, not retroactively
+**Trigger:** *Without this, debugging-iteration spend goes un-itemized — only the final committed runs are reconstructable — and the running tally drifts from reality (we believed ~$42 spent; reconstruction from committed run files showed ~$16, with the rest un-attributable overwritten iteration). With this, every API run is logged when it happens, so spend is accurate, attributable, and regenerates (Substrate Discipline #5).*
+**Operationalization:** append a `tasks/spend.md` row per run batch at run time; capture exact `response.usage` (incl. cache fields) rather than `count_tokens` estimates × a placeholder price (Exercise B builds this). Run files that get overwritten on re-run are NOT a spend ledger — the ledger is the ledger.
+
+### §0.13 — Don't over-read a comparison condition: isolate one factor, and characterize the asymptote
+**Trigger:** *Without this, a comparison yields a wrong conclusion two ways — (a) it silently varies a second factor, or (b) a mid-curve value is mistaken for a final one. Both happened in the realism check (2026-06-05): the v1 LLM-competitor pool varied phrasing AND relatedness (only 15% of lines were actually high-relatedness), so the vanished collapse looked like a "templating artifact refutation" when it was a relatedness confound; and v2's 0.80@20k was called a "plateau" until extending to 100k revealed a delayed collapse to 0.20. With this, the realism finding came out right: natural-phrasing potent competition DOES collapse (knee ~50k), composition sets the knee not the floor.*
+**Operationalization:**
+- **Verify the manipulation before trusting the result.** When generating a comparison condition, *measure* that it matches the baseline on every axis except the one under test (we classified the pool's relatedness composition before re-running). A check that moves two variables answers neither.
+- **Never call a value a plateau without data past the knee.** Extend the sweep until the curve is flat or zero; a single mid-curve point is a way-station, not a floor. (Cheap to check; expensive to get wrong in the synthesis.)
+- Corollary to §0.7: a re-pointable evaluator makes "match composition / extend length" a one-flag re-run, not a rebuild.
+
 ---
 
 ## Phase-specific notes (chronological)
