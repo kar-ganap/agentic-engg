@@ -106,3 +106,32 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 
 **Throughline property progress**
 - None. Stage 0 is foundation; properties begin advancing in Stage 2.
+
+### Phase 1.0 — Context Engineering (closed 2026-06-05)
+
+**What worked**
+- **The competition axis (neutral / localized / diffuse).** Turning Chroma's contrived "distractors" into a *competition-density* axis cleanly separated the two candidate drivers — the neutral arm (length only) had no knee to 100k, so competition, not token count, owns the onset. The single best design decision of the phase.
+- **committed / lenient bracket.** The *gap* became a result (discriminability collapses before burial; capability-dependent failure mode → §3.8), not just a scoring choice.
+- **Close-batch robustness checks each earned their keep.** Baseline validated the instrument (reproduced Chroma); realism caught both a templating/relatedness confound *and* an overclaim (the "plateau"); Sonnet produced §3.8. None were ceremony.
+- **Pre-registration before runs (§3.6 P1–P4, Exercise B P-B1–P-B4).** Made the outcomes honest — P2 came out *qualified* (no crossover) and we recorded that, rather than retrofitting.
+- **Reading the primary source.** The arXiv paper and the caching docs each corrected a secondhand error — the latter fixed a *wrong mental model* (system-first hierarchy) that would have mis-ordered the whole Exercise B prediction.
+
+**What caused friction**
+- **Spend went un-itemized** (~$42 belief vs ~$16 reconstructed from run files) → §0.12.
+- **Realism v1 confounded realism × relatedness; v2's 20k value misread as a plateau** → §0.13. Several re-runs.
+- **KV-cache cross-condition bleed** → three `cache_run` re-runs to diagnose; the `tools` cache-root stayed shared even after a system nonce, leaving restore (P-B4) only directional → §0.14.
+- **Pyright `.venv` noise** persisted (carry-forward from 0.0; editor-interpreter fix still not actioned — purely cosmetic, ignored during `make check`).
+
+**Rule changes proposed**
+- **`[ADD]`** §0.12 (log spend at run time), §0.13 (isolate one factor; characterize the asymptote before naming a plateau), §0.14 (isolate conditions sharing a stateful backend). All filed.
+- **`[MODIFY]`** CLAUDE.md "Current State" → Phase 1.0 closed (housekeeping, not a governance change). §0.13's principle **kept in `lessons.md`**, *not* promoted to Substrate Discipline (decided: it's a specific operationalization; the pre-registration rule already carries the constitutional weight).
+- **`[DELETE]`** **none.** Considered merging §0.11 into §0.13 and rejected: they are distinct failure modes — §0.11 is *scorer-validity* (the instrument misreads response form), §0.13 is *comparison-design* (the comparison varies two factors / a partial curve is misread). All current rules remain load-bearing.
+
+**Synthesis cleanup proposed**
+- None to demote or merge — every position moved coherently on measured evidence. §3.8 is correctly provisional (45). §5.2 was *qualified* (knee is potency-dependent), not deleted — the walk-back trajectory is itself the learning (Substrate Discipline #2).
+
+**Tool / permission allowlist additions**
+- None. (WebFetch for the paper + caching/pricing docs was already available and is the right tool for primary-source verification.)
+
+**Throughline property progress**
+- **Contribution (Property 4) advanced.** Two candidates now have data: localized↔diffuse rot regime + potency dose-response, and capability-dependent failure modes (§3.8). Logged in `tasks/contribution-candidates.md`. Ingest / query / re-evaluation: not this phase.
