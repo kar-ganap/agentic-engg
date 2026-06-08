@@ -75,6 +75,20 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 - General form of §0.13: any shared mutable backend (cache, rate-limit state, a warmed model, a DB) is a hidden second factor; isolate it or measure it.
 - Cost note: the cache also makes the experiment cheap (reads at 0.1×) — isolation doesn't change that, it just makes the numbers mean what you think.
 
+### §0.15 — Post-hoc findings inherit the pre-registered design's affordances; they need a dedicated control before being claimed
+**Trigger:** *Without this, an emergent (post-hoc) finding is reported as if it were measured cleanly, when it actually inherited prompt/design choices made for a different, pre-registered question. §3.8 (capability shifts confabulate→refuse) emerged from the data, but the answer prompt's explicit "reply UNKNOWN" affordance — correct for the pre-registered rot finding (it fixed the §0.11 verbosity confound) — is a live alternative explanation for the stronger model's refusal. With this, the post-hoc finding is held provisional and gated on a control that varies exactly the inherited choice.*
+**Operationalization:**
+- The right prompt for the *pre-registered* question is usually wrong for an *unanticipated* one — and you can't pre-empt findings you didn't expect (YAGNI). So don't blame the original design; instead treat post-hoc findings as **exploratory**, and design a **confirmatory control** that toggles the suspected inherited factor (here: re-run with the UNKNOWN affordance removed).
+- Keep the post-hoc confidence low (§3.8 at 45) and state the control as a *gating* criterion, not a nicety.
+- This is the exploratory-vs-confirmatory distinction (a refinement of §0.6): pre-registered = confirmatory and clean; emergent = exploratory and needs its own pre-registered re-test.
+
+### §0.16 — Verify primary sources even when a reviewer (or subagent) hands you the citation
+**Trigger:** *Without this, you treat a reviewer's or subagent's cited reference as ground truth — but the reviewer's gloss is itself secondhand. In the Phase 1.0 three-reviewer pass, reading the cited sources firsthand corrected the reviewer THREE times: the §1.3 paper's mechanism (geometric causal+residual, NOT softmax/RoPE; training does NOT mitigate — two reversals from a fast-model summary), the fallback paper (it CONTRADICTS §3.8 rather than pre-empting it — opposite scaling direction, different regime), and KVFlow (eviction/scheduling, not the prefix-cache mechanism it was cited for). With this, every load-bearing citation is read at the source before it shapes a position or a contribution claim.*
+**Operationalization:**
+- A citation that changes a confidence, a contribution claim, or a position's framing must be **read firsthand** before it's applied — WebFetch the abstract/sections, don't trust the one-line gloss (reviewer, subagent, or web summary).
+- Generalizes §0.13 (verify the primary source): the *source of the secondhand claim* doesn't matter — Gemini, a fast-model PDF summary, or an Opus reviewer are all secondhand. The firsthand read paid off every time this session.
+- Cheap exception: low-stakes "acknowledge prior art" citations where the mechanism is textbook-established (RadixAttention, PagedAttention) can be cited from settled knowledge; the agent-specific / near-cutoff ones (KVFlow) get read.
+
 ---
 
 ## Phase-specific notes (chronological)

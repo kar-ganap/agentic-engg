@@ -40,12 +40,12 @@ First experimental evidence on our own substrate, turning Module 1's theory-only
 
 This is the paper-relevant yield. Each position moved on *measured* evidence:
 
-- **§1.8 (signal density, not token count) 70→80.** Own-substrate confirmation: at matched length, diffuse competition collapses retrieval while neutral (length-only) shows no knee to 100k. Cross-model. Retraction criterion added; monotone potency dose-response (realism v1<v2<templated) is corroborating. *The phase's headline position.*
+- **§1.8 (signal density, not token count) 70→78** (trimmed from 80 in the reviewer pass — one structure × one family; the +8 is licensed by the neutral-arm length-only null, not replication breadth). Own-substrate confirmation: at matched length, diffuse competition collapses retrieval while neutral (length-only) shows no knee to 100k. Cross-model within-family. Retraction criterion added; monotone potency dose-response (realism v1<v2<templated) corroborating. *The phase's headline position.*
 - **§5.2 (agentic free budget) — own-substrate confirmed, then QUALIFIED.** The collapse is real, but the *knee is potency-dependent*: ~10–20k for templated/saturated competition, ~50k for natural mixed competition (still collapsing by 100k). The "≈10–20k budget" is the saturated case, not universal — an honest walk-back surfaced by the realism check.
 - **§3.6 (rot on agentic structures) — OUTCOME recorded.** P1 confirmed (strong); P2 supported-qualified (no crossover — localized never rotted); P3/P4 untested. Sonnet + realism spot-checks done; DeepSeek deferred.
 - **§3.8 (capability shifts failure mode) — NEW, conf 45.** Sonnet collapses earlier/harder and fails by *refusal* where Haiku *confabulates* → a stronger model is a better conflict-detector, not a more robust retriever. Provisional (n=9); seed of a contribution candidate.
 - **§1.3 (J-shape active-attention) — mechanism note added.** arXiv:2603.10123 (*Lost in the Middle at Birth*): architectural positional-sensitivity bias at init, modulated by training → regime-specific shape. Held loosely (sensitivity≠accuracy; untestable on our API setup). No confidence change. Primary source corrected an inflated secondhand summary.
-- **§1.1 (tool/prefix stability) 75→82.** Exercise B confirmed the *cache-economics* leg: tools are the cache root; mutating them is the worst anti-pattern (7× stable cost). The *model-coherence* leg remains literature-only (untested) → not fully closed.
+- **§1.1 (tool/prefix stability) 75→80** (trimmed from 82 in the reviewer pass; sub-split cache-leg ~90 / coherence-leg ~65). Exercise B confirmed the *cache-economics* leg: tools are the cache root; mutating them is the worst anti-pattern (7× stable cost). The *model-coherence* leg remains literature-only (untested) → not fully closed.
 - **§3.3 (cache hit-rate vs anti-patterns) — CONFIRMED + sharpened.** Positional cost gradient B1(tools)>A1(system)>C1(messages)>stable, with cardinal `cache_read` fractions matching the documented hierarchy.
 
 *Methods/Results live in* `experiments/phase-1.0/results.md` *(Exercise A)* *and* `results-exercise-B.md` *(Exercise B).*
@@ -69,6 +69,20 @@ This is the paper-relevant yield. Each position moved on *measured* evidence:
 ## Throughline property progress
 
 **Contribution (Property 4) advanced** — two contribution candidates now have data: (1) context rot on agentic structures, sharpened to the **localized↔diffuse regime distinction + potency dose-response**; (2) capability-dependent failure modes (§3.8). Logged in `tasks/contribution-candidates.md`. Ingest / query / re-evaluation: not this phase (Stage 2+).
+
+## Three-reviewer pass record (2026-06-05, critical boundary)
+
+Three Opus reviewers, clean context, ≥80-confidence filter. Method-rigor and framing-stress returned **no ≥80 issues** (method-rigor independently regenerated every headline number; scorer verified non-circular via the lenient curve). Prior-art returned **three ≥80 findings**; all dispositioned by reading the cited sources **firsthand** (which corrected the reviewer's gloss three times — logged as a lesson):
+
+| # | Finding (sev) | Disposition |
+|---|---|---|
+| 1 | **RULER (arXiv:2404.06654) uncited; pre-empts localized↔diffuse *count* axis** (88) | **Accepted, reframed.** Read firsthand: RULER's Multi-key NIAH spans fixed (≈localized) → full-haystack (≈diffuse) distractor count, same headline. Dropped "localized↔diffuse is a contribution"; kept the verified delta RULER lacks — **relatedness/potency dose-response, agentic substrate, committed-vs-mentioned collapse**. (§3.6, contribution-candidates) |
+| 2 | **§3.8 re-derives the fallback literature** (82) | **Partially rejected, reframed sharper.** Read firsthand: *From Loops to Oops* (2407.06071) + OpenAI find the **opposite** scaling (stronger → more hallucination/less abstention) in the *parametric* regime — so §3.8 **contradicts**, not re-derives. Framed as a candidate **regime-dependent reversal**; affordance-control now mandatory; conf held **45**. (§3.8) |
+| 3 | **KV-cache gradient is documented mechanics, not novel** (80) | **Accepted.** Read KVFlow firsthand — it's *eviction/scheduling*, not the mechanism. §3.3 labeled "confirms documented prefix-cache mechanics, pedagogical not novel"; cited RadixAttention/SGLang + vLLM-APC/PagedAttention; KVFlow as an accurate parenthetical. |
+
+**Appendix (author-judgment) actions taken:** §1.8 80→**78**, §1.1 82→**80** (both jumped a full step on one-structure / one-leg evidence); §1.3 paper ref + mechanism **corrected** (geometric causal+residual, not softmax/RoPE; training does *not* mitigate — committed in `dc51a8a`); `results.md` slogan + cache-headline disclosures softened; lessons §0.15–§0.16 added (post-hoc affordance-control; verify reviewer-supplied citations).
+
+**Net:** no finding blocked merge; the headline claims survived with two confidence trims and three citation/reframe fixes. Clear to merge.
 
 ## Key references (in-repo)
 

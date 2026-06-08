@@ -12,8 +12,12 @@ pervasive and their count scales with length — the real agentic regime), confi
 needle retrieval **collapses**, while **neutral** (topic-unrelated filler) and
 **localized** (a fixed handful of similar-but-wrong distractors) competition **hold a
 passband flat to 100k** — no sustained collapse. The neutral arm, where only *length*
-varies, shows **no knee through 100k** → **competition, not token count, drives
-context-rot onset.** The finding **replicates across two models**.
+varies, shows **no knee through 100k** → **length *without competition* is benign;
+competition at realistic density collapses it.** The finding **replicates across two
+models**. (Precise form, per the method-review: the diffuse arm couples competitor
+*count* with length by design — `count ∝ L` — so the clean isolation is the *neutral*
+arm's length-only null, not a count-at-fixed-length cell; the latter is the deferred §5
+sweep. "Competition, not token count" is the slogan; the null is what licenses it.)
 
 **The collapse *knee* is potency-dependent (robustness check, below).** With the
 templated diffuse competitors (uniform, ~75% rival *same-attribute* values) the knee is
@@ -24,7 +28,7 @@ happens — the phenomenon is robust to phrasing; the specific small budget is t
 templated case, not universal.
 
 This is direct own-substrate support for **§1.8** (signal density, not token count,
-governs rot — confidence 70→80; the monotone potency ordering low<mixed<saturated is
+governs rot — confidence 70→78; the monotone potency ordering low<mixed<saturated is
 additional evidence) and confirmation of **§5.2**'s agentic-budget-collapse prediction
 (qualified: knee is potency-dependent). Mechanism: **discriminability loss** (the model
 cannot bind the needle to its entity among competitors), expressed as **confabulation**
@@ -285,7 +289,7 @@ uv run python experiments/phase-1.0/score.py
 
 ## Synthesis updates made (2026-06-04 / -05)
 
-- **§1.8** 70→80 + retraction criterion + experimental Evidence entry (monotone
+- **§1.8** 70→78 + retraction criterion + experimental Evidence entry (monotone
   potency ordering v1<v2<templated is additional support).
 - **§5.2** own-substrate-confirmed, **qualified**: the budget collapses, but the knee is
   *potency-dependent* — ≈10–20k for templated/saturated competition, ≈50k for natural

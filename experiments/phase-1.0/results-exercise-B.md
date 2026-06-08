@@ -26,6 +26,13 @@ as the cached prefix grows vs the per-turn new tokens — our own version of Man
 "~10×"). This is *why* tools must be stable across a run: they are the literal
 cache prefix root, so any change re-bills the entire context.
 
+*Disclosure (method-review): the `tool_reorder` "cache_read 0 / 7.0×" headline is the
+steady-state (t≥1) of the **clean runs (2 of 3)**; one debugging run's rotation period
+(`t % 8`) realigned at t=4–5 and re-hit, and t=0 always warm-hits a prior policy's
+canonical tools (the cross-condition bleed, §0.14). The cardinal "tools-root change → 0"
+holds whenever the rotation actually differs; the realignment is a `t % n` artifact, not
+a cache property. The three runs' steady-state reads agree tightly otherwise.*
+
 ## Pre-registration outcomes (§3.3)
 
 - **P-B1 (baseline) — CONFIRMED.** `stable`: turn 0 writes the prefix (read 0,
