@@ -19,8 +19,8 @@ Build an **evidence-based position-forming assistant for agentic engineering** �
 ## Current State
 
 - **Stage:** 1 (Crawl) — in progress.
-- **Most recent closed:** Phase 1.0 (Module 1, Context Engineering) — both exercises done; experimental work closed 2026-06-05, pending three-reviewer pass + merge. See `docs/phases/phase-1.0-retro.md`. (Phase 0.0 closed 2026-06-01, `phase-0.0-retro.md`.)
-- **Key findings (Phase 1.0):** diffuse competition collapses retrieval (competition, not length — §1.8→80); KV-cache positional cost gradient, tool change worst (§1.1→82, §3.3). See `experiments/phase-1.0/results.md` + `results-exercise-B.md`.
+- **Most recent closed:** Phase 1.0 (Module 1, Context Engineering) — **merged to `main` 2026-06-05** (PR #1, `f100d07`); three-reviewer pass complete. See `docs/phases/phase-1.0-retro.md` (incl. reviewer-pass record). (Phase 0.0 closed 2026-06-01, `phase-0.0-retro.md`.)
+- **Key findings (Phase 1.0):** diffuse competition collapses retrieval (competition, not length — §1.8→78); KV-cache positional cost gradient, tool change worst (§1.1→80, §3.3). Both confidences trimmed in the reviewer pass; contribution narrowed vs RULER. See `experiments/phase-1.0/results.md` + `results-exercise-B.md`.
 - **Next phase:** Phase 1.0 **extension** (cross-provider DeepSeek migration-as-validation → deep sweeps: research_doc_stream, relatedness sweep, density) — see `docs/phases/phase-1.0-extension-plan.md`; then **Phase 1.1** (Module 2, Tools). Sequencing TBD at extension entry.
 - **Live docs:** working plan = `PLAN.md`; source syllabus = `Agentic_Engineering_Curriculum.md`; concept stream long-form = `docs/synthesis.md`; process stream = `tasks/lessons.md`.
 
