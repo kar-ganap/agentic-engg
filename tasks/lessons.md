@@ -89,6 +89,20 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 - Generalizes §0.13 (verify the primary source): the *source of the secondhand claim* doesn't matter — Gemini, a fast-model PDF summary, or an Opus reviewer are all secondhand. The firsthand read paid off every time this session.
 - Cheap exception: low-stakes "acknowledge prior art" citations where the mechanism is textbook-established (RadixAttention, PagedAttention) can be cited from settled knowledge; the agent-specific / near-cutoff ones (KVFlow) get read.
 
+### §0.17 — Cross-provider comparisons need a provider-neutral *structure*; tool-call-format history confounds
+**Trigger:** *Without this, a cross-provider replication uses a structure that triggers provider-specific behavior, and you measure the behavior difference instead of the effect. Porting the `tool_call_stream` rot harness to DeepSeek (via its Anthropic-compatible endpoint) failed because DeepSeek emits its internal tool-call markup as text — the tool_use/tool_result history primes it to *continue calling the tool* rather than answer. The §0.11 "remove the tools param so it must answer" fix is Anthropic-specific and does not transfer. With this, cross-provider tests use a structure with no provider-specific priming.*
+**Operationalization:**
+- For cross-provider work, prefer a **provider-neutral structure** (plain prose / single user message) over tool-call-formatted histories, which prime provider-specific continuation.
+- An "Anthropic-compatible endpoint" reuses the *wire format*, not the *behavior* — re-run the measurement-validity checks (detector phrasings, response shape, tool-call leakage) on the new family before trusting any number (§0.16's sibling at the behavior level).
+- The same effect can surface as a *different failure mode* across families (Haiku confabulates, Sonnet refuses-with-text, DeepSeek abstains/empties) — categorize the failure, don't just score accuracy.
+
+### §0.18 — Verify the *control* holds before interpreting the *treatment*; a needle tuned for one structure may not transfer
+**Trigger:** *Without this, you read a treatment-vs-control contrast where the control itself is broken, and conclude nothing (or the wrong thing). The diffuse-collapse on `tool_call_stream` low-sim relied on the neutral control *holding* (~0.8). Porting to `clean_essay` prose, the same low-sim question broke the control — the model refuses to bridge folio↔manuscript in a reading-comprehension framing and answers UNKNOWN even with zero competitors, so neutral fell to ~0.4 and the diffuse effect was masked. High-sim would have made diffuse too easy (verbatim exact-phrase match). The clean effect lived in a structure-specific sweet spot. With this, you check the control is intact in each new regime before interpreting the treatment, and you treat "clean effect in regime X" as regime-bound until shown otherwise.*
+**Operationalization:**
+- In every new structure/model/regime, **confirm the no-treatment control behaves as expected** (here: neutral holds) before reading the treatment (diffuse). A broken control makes the contrast uninterpretable, not negative.
+- Effects can be **entangled with the stimulus design** (needle-question similarity) × structure: a needle that yields a clean effect in one structure may be unfindable (too-low similarity) or trivially findable (too-high / verbatim) in another. A cross-context claim needs a **stimulus whose findability is structure-invariant** (mid-similarity), validated per regime.
+- Don't over-generalize a single-regime clean result; state its regime explicitly (a generality caveat) until a structure-invariant replication exists.
+
 ---
 
 ## Phase-specific notes (chronological)
