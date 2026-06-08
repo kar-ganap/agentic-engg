@@ -49,6 +49,13 @@ def test_sonnet_and_opus_base_input() -> None:
     assert cost("claude-opus-4-8", input_tokens=1_000_000) == pytest.approx(5.0)
 
 
+def test_deepseek_base_prices() -> None:
+    # cross-provider workhorse + stronger tier (verified vs api-docs.deepseek.com 2026-06-05)
+    assert cost("deepseek-v4-flash", input_tokens=1_000_000) == pytest.approx(0.14)
+    assert cost("deepseek-v4-flash", input_tokens=0, output_tokens=1_000_000) == pytest.approx(0.28)
+    assert cost("deepseek-v4-pro", input_tokens=1_000_000) == pytest.approx(0.435)
+
+
 def test_unknown_model_raises() -> None:
     with pytest.raises(KeyError):
         cost("gpt-4", input_tokens=10)

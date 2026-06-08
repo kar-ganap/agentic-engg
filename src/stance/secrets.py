@@ -39,3 +39,12 @@ def has_anthropic_key() -> bool:
 
 def anthropic_api_key() -> str:
     return get_secret("ANTHROPIC_API_KEY")
+
+
+def has_deepseek_key() -> bool:
+    """True iff DEEPSEEK_API_KEY is defined in `.env` (shell is not consulted)."""
+    return bool(dotenv_values(_ENV_PATH).get("DEEPSEEK_API_KEY"))
+
+
+def deepseek_api_key() -> str:
+    return get_secret("DEEPSEEK_API_KEY")

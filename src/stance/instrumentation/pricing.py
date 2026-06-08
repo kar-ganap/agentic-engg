@@ -28,10 +28,15 @@ class Price:
 
 
 # Pinned table (verified 2026-06-05). Keyed by base model id (no date suffix).
+# DeepSeek: input = cache-MISS price, cache_read = cache-HIT price; DeepSeek has no
+# separate write-multiplier (write is billed at the cache-miss input rate), so
+# cache_write_5m/1h = input. Verified vs api-docs.deepseek.com (2026-06-05).
 PRICES: dict[str, Price] = {
     "claude-haiku-4-5": Price(1.0, 5.0, 1.25, 2.0, 0.10),
     "claude-sonnet-4-6": Price(3.0, 15.0, 3.75, 6.0, 0.30),
     "claude-opus-4-8": Price(5.0, 25.0, 6.25, 10.0, 0.50),
+    "deepseek-v4-flash": Price(0.14, 0.28, 0.14, 0.14, 0.0028),
+    "deepseek-v4-pro": Price(0.435, 0.87, 0.435, 0.435, 0.003625),
 }
 
 

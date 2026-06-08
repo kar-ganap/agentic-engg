@@ -39,3 +39,24 @@ def test_has_key_reflects_env_file(tmp_path: object, monkeypatch: pytest.MonkeyP
     assert secrets.has_anthropic_key() is False
     envf.write_text("ANTHROPIC_API_KEY=k\n")
     assert secrets.has_anthropic_key() is True
+
+
+def test_deepseek_key_reads_env_not_shell(
+    tmp_path: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    envf = tmp_path / ".env"  # type: ignore[operator]
+    envf.write_text("DEEPSEEK_API_KEY=ds-from-dotenv\n")
+    monkeypatch.setattr(secrets, "_ENV_PATH", envf)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "ds-from-shell-MUST-NOT-BE-USED")
+    assert secrets.deepseek_api_key() == "ds-from-dotenv"
+
+
+def test_has_deepseek_key_reflects_env_file(
+    tmp_path: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    envf = tmp_path / ".env"  # type: ignore[operator]
+    monkeypatch.setattr(secrets, "_ENV_PATH", envf)
+    envf.write_text("ANTHROPIC_API_KEY=k\n")
+    assert secrets.has_deepseek_key() is False
+    envf.write_text("DEEPSEEK_API_KEY=ds\n")
+    assert secrets.has_deepseek_key() is True
