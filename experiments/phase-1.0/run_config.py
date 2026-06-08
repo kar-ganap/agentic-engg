@@ -51,6 +51,7 @@ CELLS = [
     Cell("clean_essay", "localized", "high", "2", "Chroma distractor effect"),
     Cell("clean_essay", "neutral", "low", "2", "Chroma similarity effect (low-sim)"),
     Cell("clean_essay", "localized", "low", "2", "distractor x low-sim"),
+    Cell("clean_essay", "diffuse", "low", "2", "cross-family clause(b): provider-neutral diffuse (no tool-call priming)"),
     # Item 3 — agentic novelty (low-sim throughout): neutral / localized / diffuse
     # give P1 (diffuse vs neutral) and P2 (diffuse vs localized; crossover at length).
     Cell("tool_call_stream", "neutral", "low", "3", "agentic baseline / passband?"),
