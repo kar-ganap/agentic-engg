@@ -11,9 +11,87 @@ Specifies the contract:
 
 from __future__ import annotations
 
-from stance.context import CategorizedContext
+from stance.context import CategorizedContext, with_cache_breakpoints
 from stance.tools import ADD, ECHO
 from tests.conftest import FakeCounter
+
+# ---------------------------------------------------------------------------
+# with_cache_breakpoints (Exercise B — cache_control wiring)
+# ---------------------------------------------------------------------------
+
+
+def test_tools_breakpoint_marks_last_tool_only() -> None:
+    out = with_cache_breakpoints(
+        system=None,
+        tools=[{"name": "a"}, {"name": "b"}],
+        messages=[{"role": "user", "content": "hi"}],
+        after_system=False,
+        end_history=False,
+    )
+    assert "cache_control" not in out["tools"][0]
+    assert out["tools"][1]["cache_control"] == {"type": "ephemeral"}
+
+
+def test_system_breakpoint_becomes_content_block() -> None:
+    out = with_cache_breakpoints(
+        system="sys",
+        tools=[],
+        messages=[{"role": "user", "content": "hi"}],
+        after_tools=False,
+        end_history=False,
+    )
+    assert out["system"] == [
+        {"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}
+    ]
+
+
+def test_history_breakpoint_string_content_converted() -> None:
+    out = with_cache_breakpoints(
+        system=None,
+        tools=[],
+        messages=[{"role": "user", "content": "hi"}],
+        after_tools=False,
+        after_system=False,
+    )
+    assert out["messages"][-1]["content"] == [
+        {"type": "text", "text": "hi", "cache_control": {"type": "ephemeral"}}
+    ]
+
+
+def test_history_breakpoint_marks_last_block_of_list_content() -> None:
+    out = with_cache_breakpoints(
+        system=None,
+        tools=[],
+        messages=[{"role": "user", "content": [{"type": "text", "text": "a"},
+                                               {"type": "text", "text": "b"}]}],
+        after_tools=False,
+        after_system=False,
+    )
+    blocks = out["messages"][-1]["content"]
+    assert "cache_control" not in blocks[0]
+    assert blocks[1]["cache_control"] == {"type": "ephemeral"}
+
+
+def test_all_flags_off_inserts_nothing() -> None:
+    out = with_cache_breakpoints(
+        system="s",
+        tools=[{"name": "a"}],
+        messages=[{"role": "user", "content": "hi"}],
+        after_tools=False,
+        after_system=False,
+        end_history=False,
+    )
+    assert out["tools"] == [{"name": "a"}]
+    assert out["system"] == "s"
+    assert out["messages"][0]["content"] == "hi"
+
+
+def test_does_not_mutate_inputs() -> None:
+    tools = [{"name": "a"}]
+    msgs = [{"role": "user", "content": "hi"}]
+    with_cache_breakpoints(system=None, tools=tools, messages=msgs, after_system=False)
+    assert "cache_control" not in tools[0]
+    assert msgs[0]["content"] == "hi"
 
 # ---------------------------------------------------------------------------
 # Snapshot shape

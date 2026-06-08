@@ -33,12 +33,62 @@ structural-framing differences between roles.
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Callable, Sequence
 from typing import Any
 
 from stance.tools import Tool
 
 _STUB_MESSAGE: dict[str, Any] = {"role": "user", "content": "."}
+_EPHEMERAL: dict[str, str] = {"type": "ephemeral"}
+
+
+def with_cache_breakpoints(
+    *,
+    system: str | None,
+    tools: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+    after_tools: bool = True,
+    after_system: bool = True,
+    end_history: bool = True,
+) -> dict[str, Any]:
+    """Return `messages.create` kwargs with ephemeral `cache_control` breakpoints.
+
+    Caching follows the documented hierarchy ``tools → system → messages``; a
+    breakpoint marks "cache everything up to and including this block." We place
+    up to 3: after the last tool, on the system block, and on the last block of
+    the last message (the moving end-of-history breakpoint). Inputs are NOT
+    mutated (deep-copied). Flags let a caller omit a breakpoint (e.g. to isolate
+    a single layer). See `docs/phases/phase-1.0-exercise-B-plan.md`.
+    """
+    out: dict[str, Any] = {}
+
+    tools = copy.deepcopy(tools)
+    if after_tools and tools:
+        tools[-1] = {**tools[-1], "cache_control": dict(_EPHEMERAL)}
+    if tools:
+        out["tools"] = tools
+
+    if system is not None:
+        # cache_control requires system to be a list of content blocks.
+        out["system"] = (
+            [{"type": "text", "text": system, "cache_control": dict(_EPHEMERAL)}]
+            if after_system
+            else system
+        )
+
+    messages = copy.deepcopy(messages)
+    if end_history and messages:
+        last = messages[-1]
+        content = last["content"]
+        if isinstance(content, str):
+            last["content"] = [
+                {"type": "text", "text": content, "cache_control": dict(_EPHEMERAL)}
+            ]
+        elif isinstance(content, list) and content:
+            content[-1] = {**content[-1], "cache_control": dict(_EPHEMERAL)}
+    out["messages"] = messages
+    return out
 
 
 def _has_unmatched_tool_use(message: dict[str, Any]) -> bool:

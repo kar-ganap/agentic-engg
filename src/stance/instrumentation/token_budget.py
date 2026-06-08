@@ -18,12 +18,20 @@ from typing import Any
 
 @dataclass
 class TurnBudget:
-    """One turn's token allocation by category."""
+    """One turn's token allocation by category, plus optional API usage.
+
+    `usage` holds the raw Anthropic `usage` counts (input/output/cache_creation/
+    cache_read) — stored raw so cost re-derives if prices change. `cost_usd` is
+    what the pinned price table said at run time (what we actually paid). The
+    caller computes cost; this module stays persistence-only (no pricing import).
+    """
 
     run_id: str
     turn: int
     categories: dict[str, int]
     model: str | None = None
+    usage: dict[str, int] | None = None
+    cost_usd: float | None = None
     extra: dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
@@ -35,6 +43,8 @@ class TurnBudget:
                 "timestamp": self.timestamp,
                 "model": self.model,
                 "categories": self.categories,
+                "usage": self.usage,
+                "cost_usd": self.cost_usd,
                 "extra": self.extra,
             },
             sort_keys=True,
@@ -64,6 +74,8 @@ class BudgetLogger:
         turn: int,
         categories: dict[str, int],
         model: str | None = None,
+        usage: dict[str, int] | None = None,
+        cost_usd: float | None = None,
         **extra: Any,
     ) -> None:
         if self._run_id is None:
@@ -74,6 +86,8 @@ class BudgetLogger:
             turn=turn,
             categories=dict(categories),
             model=model,
+            usage=dict(usage) if usage is not None else None,
+            cost_usd=cost_usd,
             extra=extra,
         )
         with self.path.open("a", encoding="utf-8") as f:

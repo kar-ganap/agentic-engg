@@ -36,6 +36,14 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 **Trigger:** *Without this, each position's evidence is bound to the problem it was first tested on; evaluating it for a new problem means rebuilding the measurement from scratch, and the package's long-term value (plug-and-play position evaluation) never materializes. With this, a new problem can be matched against preconditions and run through the bundled evaluator with only its (task suite, model, metric) supplied.*
 **Operationalization:** experiment code is parameterized over the axes we've seen vary (start: model, task suite, metric), exposes the position's mechanism-data spec as its output schema, and refuses gracefully when preconditions aren't met. **Generality accretes along proven axes — do NOT pre-build a universal evaluator (Foxconn-factory risk, cf. synthesis §2.3).** The first experiments may be problem-specific; the plug-and-play target is reached by refactoring along discovered axes, not by up-front universalization. Extends Substrate Discipline #5 (CLAUDE.md): the bar is *re-pointable at a new problem*, not merely *regenerable on the same one*. The §0.6 preconditions + mechanism-data structure IS this evaluator's interface contract — applicability-check as input gate, mechanism-data as output schema.
 
+### §0.11 — Binary substring scoring is confounded by verbosity + truncation
+**Trigger:** *Without this, a retrieval eval that substring-matches a free-form generation measures "did the answer appear in the first N output tokens of a verbose reply," not retrieval — verbose/cautious models bury or withhold the answer and score as failures that aren't retrieval failures, and a low max_tokens truncates before the answer. With this, the answer is constrained to a concise form and max_tokens set well above the answer length, so the deterministic scorer measures the intended capability.*
+**Operationalization:** force a concise answer via a system prompt (e.g. "reply with ONLY the X, else UNKNOWN") and set max_tokens ≫ answer length (`runner.ANSWER_SYSTEM`, max_tokens 256). **Incident (2026-06-04):** the Sonnet spot-check showed Sonnet "rotting" catastrophically worse than Haiku (knee 3k vs 55k, hitting 0.00) — but diagnosis revealed *both* models hedge under diffuse competition ("Meridian has conflicting catalog numbers"); Haiku states the code early (scored hit), Sonnet editorializes and gets truncated at max_tokens=64 (scored 0.00). The apparent capability inversion was a **scoring artifact**. All pre-fix curves (item 2 + 3) conflate retrieval with answer-formatting and are not reportable. Caught by the spot-check before publishing. (Reinforces §0.4/§0.9: smoke/spot-checks catch what unit tests can't.)
+
+### §0.10 — Secrets strictly from .env; the shell environment is a footgun
+**Trigger:** *Without this, `load_dotenv()` (override=False default) lets a shell-exported `ANTHROPIC_API_KEY` (e.g. a work key in `.zshrc`) silently take precedence over `.env`, so the project spends on the wrong account. With this, secrets load via `stance.secrets` (`dotenv_values`, `.env`-only, no `os.environ` fallback, raises if absent) — the shell is never consulted, and a wrong/missing key fails loud instead of billing the wrong org.*
+**Operationalization:** all API clients built with `api_key=stance.secrets.anthropic_api_key()`; never bare `anthropic.Anthropic()`; never `load_dotenv()` into `os.environ`. `.env` holds a project-scoped *personal* key — never a work/shared key. **Incident (2026-06-03):** a work key exported in `.zshrc` overrode `.env` (which happened to hold the same work key) and was used for ~$17 of personal experiments before the account hit its limit; surfaced only when the API returned a 400 credit-balance error. Fix: `.env`-only loading helper + CLAUDE.md security rule. **User action still required:** rotate the work key and put a project-scoped personal key in `.env`.
+
 ### §0.9 — Needle/task framing must avoid safety-refusal triggers (refusal ≠ failure)
 **Trigger:** *Without this, a retrieval/agentic eval whose needle or task reads as a request for sensitive info (credentials, vault codes, a security audit) measures the model's REFUSAL RATE, not the capability under test — the model finds the needle but declines to report it, and every "miss" is ambiguous (retrieval failure vs. refusal). With this, benign-domain materials make accuracy reflect the intended capability.*
 **Operationalization:** design needles/tasks in topically-benign domains (e.g., archive catalog numbers, not vault authorization codes). **Before any sweep, run a real-API smoke on an EASY cell and confirm the model both finds AND reports the needle** (hit on the trivial case) — not just that the harness runs. Worked example (2026-06-03): a "vault authorization code" needle triggered Haiku refusals ("would be a serious breach of security protocol") despite the model having located the code; swapped to "catalog number for a manuscript." The slow smoke test caught it before a ~$20 sweep that would have silently measured refusal. (Reinforces the smoke-tests-catch-what-units-can't lesson, §0.4 — here it's a *construct-validity* bug, not an API-shape bug.)
@@ -47,6 +55,39 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 - **Contrived + POSITIVE (model succeeds) → distrust as a generalization.** Success on an easy toy says nothing about the harder real task; demand a realistic eval before believing it.
 - **Always check the difficulty direction first.** The asymmetry's validity depends on contrived ≤ real difficulty. If the contrivance is *adversarially harder* than reality (e.g., hand-crafted worst-case distractors), the negative result is *mechanistic evidence* (the failure mode exists) but NOT a clean lower bound on real magnitude.
 - This is the formal version of Module 6 benchmark skepticism (cf. the rigorous-benchmarks paper, arXiv:2507.02825 — trivial agents scoring well = contrived positives that don't generalize). Worked example: Chroma context-rot is a *contrived negative*, which is exactly why its contrivance is acceptable (see synthesis §1.3 lower-bound note).
+
+### §0.12 — Log spend at run time, not retroactively
+**Trigger:** *Without this, debugging-iteration spend goes un-itemized — only the final committed runs are reconstructable — and the running tally drifts from reality (we believed ~$42 spent; reconstruction from committed run files showed ~$16, with the rest un-attributable overwritten iteration). With this, every API run is logged when it happens, so spend is accurate, attributable, and regenerates (Substrate Discipline #5).*
+**Operationalization:** append a `tasks/spend.md` row per run batch at run time; capture exact `response.usage` (incl. cache fields) rather than `count_tokens` estimates × a placeholder price (Exercise B builds this). Run files that get overwritten on re-run are NOT a spend ledger — the ledger is the ledger.
+
+### §0.13 — Don't over-read a comparison condition: isolate one factor, and characterize the asymptote
+**Trigger:** *Without this, a comparison yields a wrong conclusion two ways — (a) it silently varies a second factor, or (b) a mid-curve value is mistaken for a final one. Both happened in the realism check (2026-06-05): the v1 LLM-competitor pool varied phrasing AND relatedness (only 15% of lines were actually high-relatedness), so the vanished collapse looked like a "templating artifact refutation" when it was a relatedness confound; and v2's 0.80@20k was called a "plateau" until extending to 100k revealed a delayed collapse to 0.20. With this, the realism finding came out right: natural-phrasing potent competition DOES collapse (knee ~50k), composition sets the knee not the floor.*
+**Operationalization:**
+- **Verify the manipulation before trusting the result.** When generating a comparison condition, *measure* that it matches the baseline on every axis except the one under test (we classified the pool's relatedness composition before re-running). A check that moves two variables answers neither.
+- **Never call a value a plateau without data past the knee.** Extend the sweep until the curve is flat or zero; a single mid-curve point is a way-station, not a floor. (Cheap to check; expensive to get wrong in the synthesis.)
+- Corollary to §0.7: a re-pointable evaluator makes "match composition / extend length" a one-flag re-run, not a rebuild.
+
+### §0.14 — Conditions that share a stateful backend (e.g. the KV-cache) must be isolated
+**Trigger:** *Without this, experimental conditions run back-to-back contaminate each other through shared server state, and you measure the bleed instead of the effect. In Exercise B the prompt cache is shared server-side for ~5 min, so five cache policies run in sequence reused each other's cached prefixes (identical canonical tools, rotations, history) — `tool_reorder` spuriously hit `stable`'s cache; `restore` hit the standalone `tool_reorder` run. Three re-runs to diagnose. With this, each condition gets a unique prefix so its cache is independent and the per-condition number is intrinsic.*
+**Operationalization:**
+- Give each condition a **unique nonce in the prompt**, and put it where it actually isolates: the cache invalidation hierarchy is `tools → system → messages`, so a `system` nonce does NOT isolate the `tools` root — to isolate fully, vary content **at or before the cache root** (a per-condition tag in a tool definition).
+- Prefer **steady-state** readings (t≥1) over t=0, which is most exposed to cross-condition warmth; and fire a condition's turns back-to-back within the TTL so *intended* within-condition caching still works.
+- General form of §0.13: any shared mutable backend (cache, rate-limit state, a warmed model, a DB) is a hidden second factor; isolate it or measure it.
+- Cost note: the cache also makes the experiment cheap (reads at 0.1×) — isolation doesn't change that, it just makes the numbers mean what you think.
+
+### §0.15 — Post-hoc findings inherit the pre-registered design's affordances; they need a dedicated control before being claimed
+**Trigger:** *Without this, an emergent (post-hoc) finding is reported as if it were measured cleanly, when it actually inherited prompt/design choices made for a different, pre-registered question. §3.8 (capability shifts confabulate→refuse) emerged from the data, but the answer prompt's explicit "reply UNKNOWN" affordance — correct for the pre-registered rot finding (it fixed the §0.11 verbosity confound) — is a live alternative explanation for the stronger model's refusal. With this, the post-hoc finding is held provisional and gated on a control that varies exactly the inherited choice.*
+**Operationalization:**
+- The right prompt for the *pre-registered* question is usually wrong for an *unanticipated* one — and you can't pre-empt findings you didn't expect (YAGNI). So don't blame the original design; instead treat post-hoc findings as **exploratory**, and design a **confirmatory control** that toggles the suspected inherited factor (here: re-run with the UNKNOWN affordance removed).
+- Keep the post-hoc confidence low (§3.8 at 45) and state the control as a *gating* criterion, not a nicety.
+- This is the exploratory-vs-confirmatory distinction (a refinement of §0.6): pre-registered = confirmatory and clean; emergent = exploratory and needs its own pre-registered re-test.
+
+### §0.16 — Verify primary sources even when a reviewer (or subagent) hands you the citation
+**Trigger:** *Without this, you treat a reviewer's or subagent's cited reference as ground truth — but the reviewer's gloss is itself secondhand. In the Phase 1.0 three-reviewer pass, reading the cited sources firsthand corrected the reviewer THREE times: the §1.3 paper's mechanism (geometric causal+residual, NOT softmax/RoPE; training does NOT mitigate — two reversals from a fast-model summary), the fallback paper (it CONTRADICTS §3.8 rather than pre-empting it — opposite scaling direction, different regime), and KVFlow (eviction/scheduling, not the prefix-cache mechanism it was cited for). With this, every load-bearing citation is read at the source before it shapes a position or a contribution claim.*
+**Operationalization:**
+- A citation that changes a confidence, a contribution claim, or a position's framing must be **read firsthand** before it's applied — WebFetch the abstract/sections, don't trust the one-line gloss (reviewer, subagent, or web summary).
+- Generalizes §0.13 (verify the primary source): the *source of the secondhand claim* doesn't matter — Gemini, a fast-model PDF summary, or an Opus reviewer are all secondhand. The firsthand read paid off every time this session.
+- Cheap exception: low-stakes "acknowledge prior art" citations where the mechanism is textbook-established (RadixAttention, PagedAttention) can be cited from settled knowledge; the agent-specific / near-cutoff ones (KVFlow) get read.
 
 ---
 
@@ -79,3 +120,32 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 
 **Throughline property progress**
 - None. Stage 0 is foundation; properties begin advancing in Stage 2.
+
+### Phase 1.0 — Context Engineering (closed 2026-06-05)
+
+**What worked**
+- **The competition axis (neutral / localized / diffuse).** Turning Chroma's contrived "distractors" into a *competition-density* axis cleanly separated the two candidate drivers — the neutral arm (length only) had no knee to 100k, so competition, not token count, owns the onset. The single best design decision of the phase.
+- **committed / lenient bracket.** The *gap* became a result (discriminability collapses before burial; capability-dependent failure mode → §3.8), not just a scoring choice.
+- **Close-batch robustness checks each earned their keep.** Baseline validated the instrument (reproduced Chroma); realism caught both a templating/relatedness confound *and* an overclaim (the "plateau"); Sonnet produced §3.8. None were ceremony.
+- **Pre-registration before runs (§3.6 P1–P4, Exercise B P-B1–P-B4).** Made the outcomes honest — P2 came out *qualified* (no crossover) and we recorded that, rather than retrofitting.
+- **Reading the primary source.** The arXiv paper and the caching docs each corrected a secondhand error — the latter fixed a *wrong mental model* (system-first hierarchy) that would have mis-ordered the whole Exercise B prediction.
+
+**What caused friction**
+- **Spend went un-itemized** (~$42 belief vs ~$16 reconstructed from run files) → §0.12.
+- **Realism v1 confounded realism × relatedness; v2's 20k value misread as a plateau** → §0.13. Several re-runs.
+- **KV-cache cross-condition bleed** → three `cache_run` re-runs to diagnose; the `tools` cache-root stayed shared even after a system nonce, leaving restore (P-B4) only directional → §0.14.
+- **Pyright `.venv` noise** persisted (carry-forward from 0.0; editor-interpreter fix still not actioned — purely cosmetic, ignored during `make check`).
+
+**Rule changes proposed**
+- **`[ADD]`** §0.12 (log spend at run time), §0.13 (isolate one factor; characterize the asymptote before naming a plateau), §0.14 (isolate conditions sharing a stateful backend). All filed.
+- **`[MODIFY]`** CLAUDE.md "Current State" → Phase 1.0 closed (housekeeping, not a governance change). §0.13's principle **kept in `lessons.md`**, *not* promoted to Substrate Discipline (decided: it's a specific operationalization; the pre-registration rule already carries the constitutional weight).
+- **`[DELETE]`** **none.** Considered merging §0.11 into §0.13 and rejected: they are distinct failure modes — §0.11 is *scorer-validity* (the instrument misreads response form), §0.13 is *comparison-design* (the comparison varies two factors / a partial curve is misread). All current rules remain load-bearing.
+
+**Synthesis cleanup proposed**
+- None to demote or merge — every position moved coherently on measured evidence. §3.8 is correctly provisional (45). §5.2 was *qualified* (knee is potency-dependent), not deleted — the walk-back trajectory is itself the learning (Substrate Discipline #2).
+
+**Tool / permission allowlist additions**
+- None. (WebFetch for the paper + caching/pricing docs was already available and is the right tool for primary-source verification.)
+
+**Throughline property progress**
+- **Contribution (Property 4) advanced.** Two candidates now have data: localized↔diffuse rot regime + potency dose-response, and capability-dependent failure modes (§3.8). Logged in `tasks/contribution-candidates.md`. Ingest / query / re-evaluation: not this phase.

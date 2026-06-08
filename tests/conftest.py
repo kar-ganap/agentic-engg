@@ -3,18 +3,14 @@
 Pytest auto-discovers this file. Helpers defined here are importable from
 any test file as ``from tests.conftest import <name>``.
 
-Side effect at import: loads `.env` into the process environment so tests
-that need `ANTHROPIC_API_KEY` (the slow real-API smoke test) find it.
-No-op if `.env` doesn't exist.
+NOTE: we deliberately do NOT call load_dotenv() here. Secrets are read from
+.env directly via stance.secrets (never the shell) — the real-API smoke tests
+build their client with stance.secrets.anthropic_api_key(). See lessons §0.10.
 """
 
 from __future__ import annotations
 
 from typing import Any
-
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 class FakeCounter:
