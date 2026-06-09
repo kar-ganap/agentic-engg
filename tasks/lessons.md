@@ -103,6 +103,14 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 - Effects can be **entangled with the stimulus design** (needle-question similarity) × structure: a needle that yields a clean effect in one structure may be unfindable (too-low similarity) or trivially findable (too-high / verbatim) in another. A cross-context claim needs a **stimulus whose findability is structure-invariant** (mid-similarity), validated per regime.
 - Don't over-generalize a single-regime clean result; state its regime explicitly (a generality caveat) until a structure-invariant replication exists.
 
+### §0.19 — Substrate flipped to DeepSeek-primary / Claude-anchor (cost + cross-provider validity)
+**Trigger:** *Without an affordable primary substrate, a years-horizon curiosity-driven curriculum can't be fully explored — Haiku at $1/$5 per MTok makes broad sweeps cost-prohibitive — and an all-Anthropic evidence base carries the selection bias the prior-art reviewer flagged. With DeepSeek-primary (v4-flash $0.14/$0.28, ~7–18× cheaper) + Claude spot-anchors, exploration is affordable AND positions are cross-provider by construction.*
+**The decision (2026-06-05, end of Phase 1.0 ext):** the full convention is a CLAUDE.md Code Rule (§ Experiment substrate). Process-stream rationale + caveats recorded here:
+- The DSML tool-call-leak that confounded the cross-family rot run was a **contrived-no-tools artifact** (tool history + no `tools` param), not a general DeepSeek problem — real agent work (Module 2+) *declares* tools → structured tool calls. Smoke-test the declared-tools path at Module 2 entry; native OpenAI-format client is the fallback (§0.17).
+- The needle-similarity entanglement (§0.18) is **provider-independent** (it bit Haiku too) — orthogonal to the substrate choice.
+- This *inverts* the Phase 1.0 tiering (Haiku-primary + Sonnet-spot → DeepSeek-primary + Claude-spot); it improves §0.8 cross-provider grounding rather than weakening it.
+- Standing cost: per-experiment measurement re-validation on DeepSeek (§0.16/§0.17), and Claude-only-feature experiments stay on Claude.
+
 ---
 
 ## Phase-specific notes (chronological)
