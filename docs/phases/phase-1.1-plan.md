@@ -224,12 +224,151 @@ declared-tools smoke test passes. (Prompt-caching mechanics, if we measure
 masking-vs-swap cache cost directly, are Claude-anchored — Exercise B's caching
 semantics are Anthropic-specific.)
 
+## Finalized design decisions (locked 2026-06-10)
+
+**Scope — Focused core.** Experiments: **#4** (multistep=rot) + **#6** (return-format
+4-arm); **#3** (break-even) rides the same cache instrumentation. Masking (#1/#2)
+**gated** on the partial-tool-name prefill smoke test (record swap-vs-stable+coarse
+if tier-iii). **#5 (granularity) deferred** to a follow-up. Curriculum exercise is
+the instrument.
+
+**Domain — customer-support** (not pure sales-CRM): clean discrete entities
+(users/orders/tickets → verifiable grading + #6 id-handles) **plus** naturally
+large/messy **conversation transcripts** as the non-contrived large-output source
+for the return-a-reference leg (#4). Decisive dims were gradeable-truth (§0.18
+control must hold), native id-handle chaining (#6), and avoiding re-import of the
+Phase 1.0 needle×structure confound (rules out research/docs).
+
+**Overlap structure — a competition-density axis** (reuses §1.8's diffuse-competition
+design on *tool selection* instead of retrieval → cross-modality replication):
+- Density knob **N ∈ {0, 1, 3, 5}** confusable siblings (finer = dose-response).
+- **Namespacing tier:** cross-entity (`search_users`/`search_accounts`/`search_tickets`)
+  + sharp synonyms (`find_user`/`lookup_user`/`search_users`). Refactor = rename to
+  `{entity}_search`, **descriptions held fixed** (§0.13 isolate names XOR descriptions).
+- **Loop-guard tier:** broad `search(q)` catch-all **quarantined here** (scope overlap;
+  namespacing can't fix it).
+- **Control:** unique actions (`create_ticket`, `send_message`) = zero-competition (§0.18).
+- §0.18 sweet-spot: synonyms must be *confusable but resolvable* (a discriminating
+  signal exists) — else selection is a coin-flip and the control breaks.
+- Realism check (§0.13): natural overlap (generic `search`+domain searches) vs.
+  engineered synonyms degrade selection the same way?
+
+**#4 task design — the §1.8 rot experiment ported to a self-generated trajectory**
+(haystack = the agent's own accumulated tool returns; needle = an opaque id produced
+early, needed late; competitors = similar ids in intervening returns). Three
+**decoupled** axes (scoped cells, NOT full grid — §0.13):
+- **depth** {2, 4, 8, 12} calls → compounding/cascade
+- **absolute fill-at-use** {low ~5k, mid ~50k, high ~150k} → rot (THE axis that
+  isolates volume from step-count → makes #4 falsifiable)
+- **relative position** {0.1, 0.5, 0.9} of dependency-use → needle-depth analog,
+  **decoupled** from fill (control total accumulated volume separately, à la Phase
+  1.0 LENGTH×DEPTH; else position silently varies fill)
+- **fraction-of-window kept LOW** for mechanism cells (§1.8: collapse is competition-
+  driven, far below the limit) — proximity-to-limit is a *separate optional* axis
+  (and a cross-model hazard: 200k Haiku vs 1M DeepSeek).
+- DV: correct-use / wrong-id-confabulate / re-fetch-recovery / error (committed-lenient
+  bracket transfers). Log **fill-at-use** (mechanism) vs **peak/total fill** (cost/#3)
+  separately.
+- Trajectory control: **task-structure-induced** (data-dependency graph forces
+  depth+span; agent stays free) for the clean cell; **free-trajectory** for the
+  realism leg.
+
+## Run-config (locked 2026-06-10) — becomes a versioned `run_config.py` (#5)
+
+**Control granularity:** **per-tier** — each tier's zero-point (selection N=0; #4
+zero-competition+low-fill; #6 low-fill) is run and **must hold before its treatment
+is read** (§0.18). Falls out of the axes' zero-points; near-free.
+
+**#4 — anchor `A0 = {depth8, fill-mid~50k, pos0.9, comp-many, return-large}` + one-factor sweeps** (≈12 distinct cells; A0 shared):
+- Fill {low~5k, mid, high~150k} @ depth8/pos.9/comp-many — **headline: rot vs compounding**
+- Depth {2,4,8,12} @ **fill-low**/pos.9/comp-many — compounding baseline (also **#3** cache x-axis)
+- Position {0.1,0.5,0.9} @ depth8/fill-mid/comp-many — needle-depth analog *(secondary)*
+- Competition {0,few,many} @ depth8/fill-mid/pos.9 — §1.8 dose-response; **N=0 = control**
+- Return-shape {large, reference} @ depth8/**fill-high**/pos.9/comp-many — return-a-reference
+
+**#6 — 4 arms {A,B,C,D} × fill {low, high}, depth=2** = 8 cells. High-fill = discriminator (does D−C gap widen?). Id must be opaque & only-in-detailed (§0.18 sweet-spot).
+
+**Selection** — density N∈{0,1,3,5} × {pre-, post-namespace} = 8 cells + 2 realism (engineered vs natural overlap @ N=3) = 10. Refactor varies **names only**, descriptions fixed (§0.13).
+
+**Loop-guard** — {loop-guard on/off} × {terminal-state crisp/soft} = 4 cells.
+
+**Seeds:** **5/cell throughout** (the 3-on-secondary cut rejected — false economy; under-powers curve shapes for ~$2).
+**Fill control:** via injected customer-support **transcript** returns (diffuse competitors — other users' ids — live inside them). Targets are *fill-at-use*. **High capped at ~150k** so the Claude(Haiku-200k) spot-anchor runs without window-edge effects; fraction-of-window stays quarantined.
+**Substrate:** DeepSeek v4-flash primary (post declared-tools smoke test) + 3–4 headline cells spot-anchored on Haiku/Sonnet.
+**Scale/cost:** ≈170–180 DeepSeek runs + anchors ≈ **$12–15** (well under the $75 cap; we're at ~$39 reproducible).
+**Deferred to v2:** description-refinement micro-experiment (2 cells, direction-only); §5 granularity (#5).
+
+## Eval record schemas (v1)
+
+### Per-call event (RAW, append-only; one row per loop turn) — locked 2026-06-10
+
+Unit = **per-loop-turn** with an `is_tool_call` flag (complete trajectory incl. the
+final-answer turn). Store **raw facts only**; everything evaluative is scorer-derived.
+Big payloads (reasoning, response) stored as **hash/ref** to a side transcript
+(recoverable via deterministic generation); only *sizes* inline.
+
+- **Identity:** `run_id, cell_id, task_id, seed, model, turn_index, timestamp, is_tool_call`
+- **Selection:** `tool_called` (null if not a call), `tool_expected` (null where undefined), `arguments`, `args_valid`
+- **Reasoning/feedback:** `reasoning_ref`, `feedback_ref` (refs; nullable)
+- **Response:** `response_ref`, `response_size_tokens`, `response_format` (#6: returned + requested-for-arm-C), `is_error`, `error_type`, `truncated`, `extracted_ids` (**comprehensive — ALL ids the call surfaced**, enables mis-bind∈pool vs. fabricate∉pool)
+- **Accounting:** `usage {input, output, cache_creation, cache_read}`, `context_size_at_call` (fill-at-use), `latency_ms`
+- **Loop:** `stop_reason` / `is_final`
+- **NOT stored (scorer-derived):** wrong-tool, is_redundant, args_correct, cost_usd, cascade, first-error-depth, is_critical_step, the #4 DV classification, tokens-per-success
+- **Reproducibility:** transcripts/competitor-ids generated deterministically from seed+config (ids unique, no needle↔competitor collision — Phase 1.0 collision-filter discipline); `response_ref` hash = integrity check; raw logs append-only.
+
+### Per-task summary (DERIVED scorer artifact; one row per run = task×seed) — locked 2026-06-10
+
+**It is the first *derived* layer, not a runtime log** — regenerable by re-running the
+scorer over the raw events + run-record + task config (re-pointable evaluator §0.7;
+#5 numbers regenerate). New metric idea later → re-derive, don't re-run.
+
+**Raw companion the harness writes (robust to crash, in a finally-block) — the run
+record:** `run_id, cell_id, task_id, seed, model, started, ended, terminal_status ∈
+{complete, max_turns, crash, timeout}, final_answer_ref`. (Events alone can't capture
+terminal_status — a crash skips the `is_final` turn.) So the **raw layer = per-call
+events + this run record**; the **derived layer = the per-task summary** below.
+
+Per-task summary fields (all derived; per-run scalars):
+- **A. Identity & cell coords:** `run_id, task_id, cell_id, seed, model`; **intended IVs**
+  (depth, fill-level, position, competition-N, return-mode, #6 arm, namespace-cond, tier);
+  **achieved IVs** (`achieved_depth`=#tool-calls, `peak_fill`, `fill_at_use`,
+  `competitors_surfaced`) — **bin by achieved**, not intended (free-trajectory).
+- **B. Outcome:** `success`, `assertions_passed`, `final_answer_hedge` (committed/lenient).
+- **C. #4 DV:** `critical_outcome` ∈ {correct-use, mis-bind (∈pool), fabricate (∉pool), re-fetch, error}.
+- **D. Failure-shape:** `first_error_depth`, `cascade`, `redundant_call_count`, `recovered`.
+- **E. Selection (selection-tier):** `wrong_tool_count`, `confusion_pairs`.
+- **F. Cost/efficiency:** `total_tokens`, `total_output_tokens`, `total_cache_read`,
+  `total_cache_creation` (#3), `total_cost_usd`, `peak_fill`, `sequential_round_trips`
+  (= achieved_depth; the **reproducible latency proxy**). **`wall_clock_ms` dropped as a
+  result-metric** — provider-infra noise, not cross-provider comparable, non-reproducible
+  (violates #5); kept at most as operational metadata (hang-detection), never a comparison.
+- **G. #6-specific:** `arm`, `format_selection_accuracy` (arm C), `handle_available`
+  (did the format deliver the id?), `handle_used` (did the agent thread it?).
+
+Field notes:
+- **`peak_fill` vs `fill_at_use`:** peak = max context across the trajectory (cost +
+  window-limit-proximity check); fill_at_use = context *at the critical step* (the #4
+  mechanism quantity). peak ≥ fill_at_use.
+- **`handle_available`/`handle_used`** decompose #6 — the **format's** job (availability)
+  vs. the **agent's** job (use). The (available=true, used=false) outcome *undercuts D's
+  premise*. Not redundant with #4's `critical_outcome` (format mechanism vs. competition
+  mechanism; each is meaningless in the other's tier).
+- **Latency** is reported via `sequential_round_trips` + `total_output_tokens`
+  (reproducible, provider-comparable) — not wall-clock.
+
+**Analysis layers (COMPUTED, not stored schemas):** event (raw) → task-summary (derived)
+→ **cell aggregate** (one condition × 5 seeds → a rate = one point) → **sweep/curve/
+frontier** (across cells along an axis → dose-response, success-vs-cost frontier). A
+curve's *points* are cell-level; the *curve* spans a sweep. Rates/curves are generated
+into `results.md` (Phase 1.0 precedent), not stored as records.
+
 ## To finalize at Phase 1.1 entry (decisions deferred — mostly user-owned)
 
+- [x] Which positions get full experiments vs. stay reading-only. → **Focused core** (above).
+- [x] Exercise spec — domain + overlap design. → **customer-support + competition-density** (above); held-out eval set still TBD.
 - [ ] The two eval record schemas + the raw-field set (**user-owned**).
-- [ ] Which positions get full experiments vs. stay reading-only.
-- [ ] Confidence (0–100) + retraction criterion per committed position.
-- [ ] Exercise spec: tool-suite domain, # tools (curriculum: 10–15), overlap design, held-out eval set.
+- [ ] Confidence (0–100) + retraction criterion per committed position (#4/#6/#3) (**user-owned**).
+- [ ] Held-out tool eval set (curriculum requirement).
 - [ ] TDD sequencing (failing tests first); `make check` gate.
 - [ ] **Three-reviewer pass applies** — Phase 1.1 closes with position commitments → critical boundary.
 
