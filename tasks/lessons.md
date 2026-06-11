@@ -171,3 +171,32 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 
 **Throughline property progress**
 - **Contribution (Property 4) advanced.** Two candidates now have data: localized↔diffuse rot regime + potency dose-response, and capability-dependent failure modes (§3.8). Logged in `tasks/contribution-candidates.md`. Ingest / query / re-evaluation: not this phase.
+
+### Phase 1.0 Extension — Cross-Provider Validation + Substrate (closed 2026-06-10)
+
+> Retro: `docs/phases/phase-1.0-extension-retro.md`. Inconclusive cross-family attempt + the DeepSeek-primary/Claude-anchor substrate adoption. No new position committed → no three-reviewer pass (deferred to Phase 1.1 close).
+
+**What worked**
+- **Anthropic-compatible endpoint → reuse the whole pipeline unchanged.** The `complete_fn`/`count_fn` DI seams paid off again: cross-family wiring was a `--provider` flag, not a rewrite. Byte-identical message structures = no format-translation confound.
+- **Reading sources firsthand** (DeepSeek format spec → "DSML" is leaked internal markup, *not* a documented format; the §1.3 paper re-read). §0.16 held every time.
+- **Honest inconclusive.** Recorded "clause (b) open + harder" + the structure×similarity entanglement rather than forcing a result from a confounded run (Substrate Discipline #2).
+- **Substrate decision shipped with a trigger statement + carve-out** (Claude-only-feature experiments stay on Claude) — passes the rule-admission test.
+
+**What caused friction**
+- **DSML tool-call leak** confounded the cross-family `tool_call_stream` run (a contrived-no-tools artifact; the no-tools fix is Anthropic-specific) → §0.17.
+- **`clean_essay` control broke** (low-sim folio-wrinkle wrecks the neutral control on prose) → §0.18. The clean effect lived in a structure-specific sweet spot.
+- ~$9.5 spent on an inconclusive (but informative) attempt — the entanglement finding is the yield.
+
+**Rule changes proposed**
+- **`[ADD]`** §0.17 (cross-provider needs a provider-neutral structure), §0.18 (verify the control holds before interpreting the treatment), §0.19 (substrate flip → DeepSeek-primary/Claude-anchor). All filed.
+- **`[MODIFY]`** CLAUDE.md: Code Rules += "Experiment substrate: DeepSeek-primary, Claude-anchor"; Current State updated; subagent model-tiering clarified as distinct from the experiment substrate.
+- **`[DELETE]` none.** Considered merging §0.17 and §0.18; rejected — §0.17 is a *provider-format* confound, §0.18 is *control-validity per regime*. Distinct failure modes.
+
+**Synthesis cleanup proposed**
+- §1.8 generality caveat added (cross-structure/provider generality NOT established; clause (b) open). §3.8 abstention added as a 3rd failure mode (caveated; stays 45). §3.6 cross-provider row (inconclusive). No demotions or merges.
+
+**Tool / permission allowlist additions**
+- None. (WebFetch already available; used for the DeepSeek spec + Manus infra re-read.)
+
+**Throughline property progress**
+- **No surface advanced** (Stage 1 — expected). **Property 3 (re-evaluation) exercised in spirit:** §1.8/§3.8 re-evaluated against cross-family evidence, held-with-caveat rather than drifting. The substrate decision improves cross-provider grounding (feeds Property 4 later).

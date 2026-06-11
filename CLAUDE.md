@@ -19,9 +19,9 @@ Build an **evidence-based position-forming assistant for agentic engineering** �
 ## Current State
 
 - **Stage:** 1 (Crawl) — in progress.
-- **Most recent closed:** Phase 1.0 (Module 1, Context Engineering) — **merged to `main` 2026-06-05** (PR #1, `f100d07`); three-reviewer pass complete. See `docs/phases/phase-1.0-retro.md` (incl. reviewer-pass record). (Phase 0.0 closed 2026-06-01, `phase-0.0-retro.md`.)
-- **Key findings (Phase 1.0):** diffuse competition collapses retrieval (competition, not length — §1.8→78); KV-cache positional cost gradient, tool change worst (§1.1→80, §3.3). Both confidences trimmed in the reviewer pass; contribution narrowed vs RULER. See `experiments/phase-1.0/results.md` + `results-exercise-B.md`.
-- **Next phase:** Phase 1.0 **extension** (cross-provider DeepSeek migration-as-validation → deep sweeps: research_doc_stream, relatedness sweep, density) — see `docs/phases/phase-1.0-extension-plan.md`; then **Phase 1.1** (Module 2, Tools). Sequencing TBD at extension entry.
+- **Most recent closed:** Phase 1.0 **extension** (cross-provider DeepSeek validation + substrate adoption) — retro + `/learn` written 2026-06-10; three-reviewer pass **deferred to Phase 1.1** (inconclusive; no new position committed). See `docs/phases/phase-1.0-extension-retro.md`. (Phase 1.0 merged to `main` 2026-06-05, PR #1 `f100d07`; Phase 0.0 closed 2026-06-01.)
+- **Key findings (Phase 1.0 + ext):** diffuse competition collapses retrieval (competition, not length — §1.8→78, now **+ generality caveat**: cross-structure/provider generality NOT established, clause (b) open); KV-cache positional cost gradient, tool change worst (§1.1→80, §3.3, 7× cache root). Cross-family (DeepSeek) inconclusive — structure×needle-similarity entanglement; DeepSeek adds **abstention** as a 3rd diffuse failure mode (§3.8, caveated). See `experiments/phase-1.0/results.md`, `results-exercise-B.md`, `results-cross-family.md`.
+- **Next phase:** **Phase 1.1** (Module 2, Tools) — **PLAN complete** (`docs/phases/phase-1.1-plan.md`: pre-registered #4 multistep-rot / #6 return-format / #3 break-even, customer-support harness, eval schemas, confidences). Next: declared-tools + prefill smoke tests → TDD build. **Critical boundary** (position commitments) → three-reviewer pass at close.
 - **Live docs:** working plan = `PLAN.md`; source syllabus = `Agentic_Engineering_Curriculum.md`; concept stream long-form = `docs/synthesis.md`; process stream = `tasks/lessons.md`.
 
 ## Stage / Phase Model
