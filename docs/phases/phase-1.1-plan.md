@@ -383,6 +383,63 @@ since nothing here is measured yet. Only the **committed** positions get priors;
 - **#3 — swap break-even (a crossover exists): prior 70** (near-arithmetic given the cost model + owned 7×, *minus* the DeepSeek-cache-unknown — the 10-pt haircut prices exactly its own retraction risk).
   - **Retraction:** the cache cost model doesn't hold on our substrate — mutating tools is **not** more expensive than carrying them, or carry-cost isn't ~fixed.
 
+## Loop & generator design (locked 2026-06-11)
+
+Extends the Phase 0.0 raw loop (`src/stance/loop.py`). **Core reframe: error philosophy
+inverts — 0.0 fails *loud* (crash on unknown-tool/exception/max_turns); 1.1 fails *as
+data*, because the failures ARE the measurement** (wrong-tool, runaway, recovery). Most
+of the below follows from that.
+
+### The loop — what Module 2 adds to the 0.0 cycle
+Reuse the 0.0 cycle (snapshot→call→append assistant `content`→stop-check→dispatch each
+`tool_use`→append results). Add:
+1. **Error-as-data dispatch** — unknown-tool / bad-args / tool-exception → structured `ToolResult`, never a raise.
+2. **Rich per-call event** (replaces token-only BudgetLogger) — incl. `usage` (`response.usage.input_tokens` *is* `context_size_at_call`/fill-at-use — exact, free).
+3. **Toggleable loop-guard** (below).
+4. **Crash-robust run record** — `try/finally` always writes `terminal_status`; `max_turns` is a *data point*, not `RuntimeError`.
+5. **Return** `{run_id, final_answer, terminal_status}`; trajectory lives in events.
+
+**Invariants:** well-formed conversation (every `tool_use`→matching `tool_result`, incl. error ones); append full `response.content` (incl. thinking); stable tool set (#1); exactly one event per loop turn; always a run record.
+
+### Error contract (decision #1)
+Uniform **`ToolResult`** from every dispatch, never raises — model-facing `{content, is_error}`, logging `{error_type, extracted_ids, response_format, size_tokens}`. Two layers:
+- **Universal (harness, pre-fn):** `unknown_tool` (was 0.0 KeyError → now data; catches hallucinated tools), `schema:{missing,type,enum,unknown_arg}` (jsonschema), `exception`.
+- **Tool-specific (fn):** `not_found` (catches fabrication ∉pool), `ambiguous`, `empty`, `out_of_range`, …
+
+Principles: loud→data everywhere; universal layer thin + low-rate, **kept as a control** ("structural ~0% → failures are semantic"); **no per-tool *structural* taxonomy**; **dangerous failures (mis-bind, wrong-value) deliberately NOT in the contract** → silent, scorer-caught (§3.8). Every error `message = render(error_type, details, terminal_style)`; **`terminal_style ∈ {crisp, soft}` is the terminal-state IV** (seam now, template content later).
+
+### Loop-guard policy (decision #2)
+- **Signature:** exact `(tool, normalized_args)` hash; variation-thrashing excluded from triggering (scorer flags descriptively).
+- **Trigger:** **K=2, whole-run** (deterministic tools → identical re-call always pointless).
+- **Action — warn-then-break:** 2nd occurrence → *don't re-run*; inject a **crisp corrective** (refs the prior result), continue (→ recovery signal); 3rd → break, `terminal_status="loop_guard"`.
+- Guard corrective is **always crisp, part of "guard on"** — OFF the `terminal_style` axis (clean 2×2). Guard OFF → agent loops to `max_turns` (raw redundant-call rate).
+- `terminal_status ∈ {complete, max_turns, loop_guard, crash, timeout}`.
+- **2×2** `{guard on/off} × {terminal crisp/soft}` tests structure(tool-message) vs harness-mechanism.
+- **Compaction-forward (deferred):** ledger carries a per-signature **visibility flag**; when compaction lands, *forgive* a repeat whose prior result was evicted (justified **re-fetch**, not a loop) → **splits `redundant_call_count` into true-loop vs justified-re-fetch** (a context-loss probe tying to #4). v1 (no compaction): all visible → whole-run K=2 unchanged. Study the guard tier *without* compaction first.
+
+### Loop decisions #3–5
+- **#3 `extracted_ids` = the *rendered* ids** the tool returns (format-aware — what the agent saw), NOT parsed from text (regex fragility → mis-bind misclassified as fabricate). Optional **test-time** cross-check (`extracted_ids ⊆ ids-in-content`).
+- **#4 arm threading** — per-run factory `make_tools(world, arm)`; **A/B/D** fixed format, no `response_format` param; **C** schema *has* the enum param. The schema difference **IS the treatment** (choice vs no-choice). Loop **arm-agnostic**; captures `response_format` (returned, all) + `format_requested` (C only).
+- **#5 raw/derived line** — loop logs **raw fact of what happened** (calls, args, `args_valid`, errors, `usage`, `extracted_ids`, `response_format`/`requested`, final answer, **and its own guard actions** — not re-derivable); scorer derives everything needing **ground-truth/aggregation**.
+
+### Completeness pass — every summary field derivable ✅
+Gated on **6 raw/config inputs:** (1) final-answer *text* recoverable via ref; (2) per-seed **needle id** resolvable; (3) `tool_expected` for selection tier; (4) **guard actions raw-logged**; (5) `extracted_ids` = rendered; (6) **expected end-state as predicates over `{events + final answer}`**. Two definitions pinned: `first_error_depth` (earliest `is_error`, else earliest checkable deviation, else None); `cascade` (early wrong value consumed by a later step's args + corrupted-consistent final answer).
+
+### Generator / task-config (decisions, locked)
+`generate(cell, seed) → (World, TaskInstance{prompt, dependency_edge, expected_writes, expected_tool?, ivs, seed})`, deterministic.
+
+**Core technique:** control via the **DATA the dependency-forced calls return**, NOT by scripting the agent — the dependency graph forces the chain; the generator controls those calls' returns (needle in producer's return; competitors+fill in intervening returns). Agent free *within* the forced path. §0.18: verify the chain was traversed (bin by *achieved*).
+
+1. **World granularity** — per-task-generated returns (controlled cells) + shared messy DB (realism leg).
+2. **Forcing** — **data-dependency-forced** chains (uncompletable except via the needle-threading path), not instruction-forced.
+3. **Difficulty knob** — **entity-reference clarity** (unique vs ambiguous target) as low/mid/high; competitor ids **same-format, distinct-value, collision-filtered** (Phase 1.0 `_gen_code`).
+4. **Transcript source** — templated/controlled-density v1 + LLM-pool realism leg (reuse `competitor_pool`).
+5. **Factoring** — shared **domain substrate** (`domain.py`: id/entity/transcript gen + `World`) + **per-tier builders** (`tasks/{chain,format,selection,loopguard}.py`) + uniform `TaskInstance`; `run_config` dispatches `cell.tier → builder`; loop/scorer tier-agnostic.
+
+**Verifiability — write-boundary predicates:** assert at **state-changing actions** (writes) with **correct consumed values + cardinality** (incl. negative assertions); leave the read path free. **Generator emits the predicates** (from the ground truth it created) → consistent **by construction**. **Constraint:** controlled cells = **action-completion tasks only** (no prose-quality → no LLM-judge variance); deliverable checks = id-token presence, not prose. Multi-step → one predicate per terminal write, **partial credit**; for #4 the load-bearing predicate = the **critical-step write** (= the `critical_outcome` check — success and #4 DV collapse into one assertion).
+
+**§0.18 mitigation:** **needle = opaque id** eliminates the synonym-bridging control-break that killed `clean_essay` (ids are exact/unique); difficulty knob is entity-disambiguation (clean), not lexical similarity (fraught). Still run each tier's zero-competition control first; confirm correct-use high before reading treatment.
+
 ## To finalize at Phase 1.1 entry (decisions deferred — mostly user-owned)
 
 - [x] Which positions get full experiments vs. stay reading-only. → **Focused core** (above).
