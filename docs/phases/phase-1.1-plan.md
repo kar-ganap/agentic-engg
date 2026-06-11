@@ -362,13 +362,32 @@ frontier** (across cells along an axis → dose-response, success-vs-cost fronti
 curve's *points* are cell-level; the *curve* spans a sweep. Rates/curves are generated
 into `results.md` (Phase 1.0 precedent), not stored as records.
 
+## Confidences + retraction (PRE-REGISTRATION PRIORS, locked 2026-06-10)
+
+These are **priors** (before any Phase 1.1 data), updated to **posteriors** at the
+retro. Deliberately humbler than Phase 1.0's *posterior* anchors (§1.8=78, §3.8=45),
+since nothing here is measured yet. Only the **committed** positions get priors;
+#1/#2 (masking) are gated on the prefill smoke test and #5 is deferred → no v1 prior.
+
+- **#4(i) — mechanism (rot exists; competition degrades retrieval in self-generated trajectories): prior 60.** Grounded in §1.8 + §0.8 (mechanism transfers), tempered because cross-substrate generalization is *exactly* what bit us in 1.0-ext (§0.18; clause-b open).
+  - **Retraction (primary, mode-agnostic):** `correct-use` rate is **flat** w.r.t. competition/fill → rot refuted.
+  - **Failure-mode = characterization, not falsifier** (§0.17): mis-bind∈pool on the Claude anchor; possibly **abstention/re-fetch** on DeepSeek.
+- **#4(ii) — lever ordering (return-shape > description at depth): prior 50; v1-PARTIAL.**
+  - **v1 retraction (return-size half):** return-*size* pruning doesn't shift `correct-use` at depth → rot-lever in trouble.
+  - **Full ordering (return-shape vs. description) → v2** (needs the deferred description-rewrite arm).
+- **#6 — remove-the-format-choice: prior 45** (novel, zero prior evidence, genuine equipoise; contribution-worthy *because* uncertain).
+  - **Retraction:** agent-enum (C) Pareto-beats always-attach (D) on success-vs-tokens; **or** handle-block overhead makes D lose to a fixed arm.
+  - **Mechanism sub-claim:** C beats fixed arms only *above* a format-selection-accuracy threshold.
+- **#3 — swap break-even (a crossover exists): prior 70** (near-arithmetic given the cost model + owned 7×, *minus* the DeepSeek-cache-unknown — the 10-pt haircut prices exactly its own retraction risk).
+  - **Retraction:** the cache cost model doesn't hold on our substrate — mutating tools is **not** more expensive than carrying them, or carry-cost isn't ~fixed.
+
 ## To finalize at Phase 1.1 entry (decisions deferred — mostly user-owned)
 
 - [x] Which positions get full experiments vs. stay reading-only. → **Focused core** (above).
 - [x] Exercise spec — domain + overlap design. → **customer-support + competition-density** (above); held-out eval set still TBD.
 - [ ] The two eval record schemas + the raw-field set (**user-owned**).
-- [ ] Confidence (0–100) + retraction criterion per committed position (#4/#6/#3) (**user-owned**).
-- [ ] Held-out tool eval set (curriculum requirement).
+- [x] Confidence (0–100) + retraction criterion per committed position — **#4(i)=60, #4(ii)=50 (v1-partial), #6=45, #3=70** (priors; see Confidences section).
+- [x] Held-out eval set — **reserved seed range**, ~⅓ the dev selection tasks (same overlap structure, different entities, never used to drive the rename). **v1 use: namespacing generalization only** (mechanism sweeps #4/#6/#3 tune nothing → need none); becomes central in v2 (description-refinement, #5 granularity — falsifier is "held-out novel tasks").
 - [ ] TDD sequencing (failing tests first); `make check` gate.
 - [ ] **Three-reviewer pass applies** — Phase 1.1 closes with position commitments → critical boundary.
 
