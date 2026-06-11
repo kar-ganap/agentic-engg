@@ -19,7 +19,12 @@ from stance.rot.runner import (
     passband_knee,
     run_cell,
 )
-from stance.secrets import anthropic_api_key, has_anthropic_key
+from stance.secrets import (
+    anthropic_api_key,
+    deepseek_api_key,
+    has_anthropic_key,
+    has_deepseek_key,
+)
 
 FILLER = [
     "The harbor was quiet that morning and the sky stayed a pale grey.",
@@ -158,3 +163,41 @@ def test_real_api_tool_stream_accepted(tmp_path: Any) -> None:
     rec = load_records(out)[0]
     assert rec["exact_tokens"] > 0
     assert rec["hit"] is True  # easy case: short, neutral, high-sim
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    not (has_deepseek_key() and has_anthropic_key()),
+    reason="DEEPSEEK_API_KEY (and ANTHROPIC_API_KEY for counting) not in .env",
+)
+def test_real_api_deepseek_anthropic_endpoint_accepted(tmp_path: Any) -> None:
+    """Step-0 gate (Phase 1.0 ext): DeepSeek's Anthropic-compatible endpoint accepts
+    our tool_call_stream pipeline unchanged. Complete on DeepSeek, count on
+    Anthropic-Haiku (consistent x-axis). Burns ~$0.001."""
+    import anthropic
+
+    ds = anthropic.Anthropic(
+        base_url="https://api.deepseek.com/anthropic", api_key=deepseek_api_key()
+    )
+    counter = anthropic.Anthropic(api_key=anthropic_api_key())
+
+    def complete(**kw: Any) -> Any:
+        return ds.messages.create(**kw)
+
+    def count(**kw: Any) -> int:
+        return counter.messages.count_tokens(
+            **{**kw, "model": "claude-haiku-4-5-20251001"}
+        ).input_tokens
+
+    out = tmp_path / "ds.jsonl"
+    n = run_cell(
+        structure="tool_call_stream", competition="neutral", similarity="high",
+        model="deepseek-v4-flash",
+        lengths=[1500], depths=[0.5], seeds=[1],
+        complete_fn=complete, count_fn=count, out_path=out, max_tokens=64,
+    )
+    assert n == 1
+    rec = load_records(out)[0]
+    assert rec["exact_tokens"] > 0   # Anthropic-counted x-axis populated
+    assert rec["answer"]            # the endpoint returned readable text (pipeline reused)
+    assert rec["hit"] is True       # easy case: short, neutral, high-sim

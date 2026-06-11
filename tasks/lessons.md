@@ -86,8 +86,30 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 **Trigger:** *Without this, you treat a reviewer's or subagent's cited reference as ground truth — but the reviewer's gloss is itself secondhand. In the Phase 1.0 three-reviewer pass, reading the cited sources firsthand corrected the reviewer THREE times: the §1.3 paper's mechanism (geometric causal+residual, NOT softmax/RoPE; training does NOT mitigate — two reversals from a fast-model summary), the fallback paper (it CONTRADICTS §3.8 rather than pre-empting it — opposite scaling direction, different regime), and KVFlow (eviction/scheduling, not the prefix-cache mechanism it was cited for). With this, every load-bearing citation is read at the source before it shapes a position or a contribution claim.*
 **Operationalization:**
 - A citation that changes a confidence, a contribution claim, or a position's framing must be **read firsthand** before it's applied — WebFetch the abstract/sections, don't trust the one-line gloss (reviewer, subagent, or web summary).
-- Generalizes §0.13 (verify the primary source): the *source of the secondhand claim* doesn't matter — Gemini, a fast-model PDF summary, or an Opus reviewer are all secondhand. The firsthand read paid off every time this session.
+- Generalizes §0.13 (verify the primary source): the *source of the secondhand claim* doesn't matter — Gemini, a fast-model PDF summary, an Opus reviewer, **or our own in-repo / seed docs** are all secondhand. (2026-06-09: `Agentic_Engineering_Curriculum.md:88` presented a quoted *"40% decrease in task completion time"* as from Anthropic's *Writing Effective Tools for AI Agents*; reading the blog firsthand showed the number is **not in the source** — the blog's claim is qualitative. The fabricated quote in our own seed doc propagated into conversation **and** the Phase 1.1 buffer before the user caught it. A trusted in-repo doc is *not* a primary source.) The firsthand read paid off every time this session.
 - Cheap exception: low-stakes "acknowledge prior art" citations where the mechanism is textbook-established (RadixAttention, PagedAttention) can be cited from settled knowledge; the agent-specific / near-cutoff ones (KVFlow) get read.
+
+### §0.17 — Cross-provider comparisons need a provider-neutral *structure*; tool-call-format history confounds
+**Trigger:** *Without this, a cross-provider replication uses a structure that triggers provider-specific behavior, and you measure the behavior difference instead of the effect. Porting the `tool_call_stream` rot harness to DeepSeek (via its Anthropic-compatible endpoint) failed because DeepSeek emits its internal tool-call markup as text — the tool_use/tool_result history primes it to *continue calling the tool* rather than answer. The §0.11 "remove the tools param so it must answer" fix is Anthropic-specific and does not transfer. With this, cross-provider tests use a structure with no provider-specific priming.*
+**Operationalization:**
+- For cross-provider work, prefer a **provider-neutral structure** (plain prose / single user message) over tool-call-formatted histories, which prime provider-specific continuation.
+- An "Anthropic-compatible endpoint" reuses the *wire format*, not the *behavior* — re-run the measurement-validity checks (detector phrasings, response shape, tool-call leakage) on the new family before trusting any number (§0.16's sibling at the behavior level).
+- The same effect can surface as a *different failure mode* across families (Haiku confabulates, Sonnet refuses-with-text, DeepSeek abstains/empties) — categorize the failure, don't just score accuracy.
+
+### §0.18 — Verify the *control* holds before interpreting the *treatment*; a needle tuned for one structure may not transfer
+**Trigger:** *Without this, you read a treatment-vs-control contrast where the control itself is broken, and conclude nothing (or the wrong thing). The diffuse-collapse on `tool_call_stream` low-sim relied on the neutral control *holding* (~0.8). Porting to `clean_essay` prose, the same low-sim question broke the control — the model refuses to bridge folio↔manuscript in a reading-comprehension framing and answers UNKNOWN even with zero competitors, so neutral fell to ~0.4 and the diffuse effect was masked. High-sim would have made diffuse too easy (verbatim exact-phrase match). The clean effect lived in a structure-specific sweet spot. With this, you check the control is intact in each new regime before interpreting the treatment, and you treat "clean effect in regime X" as regime-bound until shown otherwise.*
+**Operationalization:**
+- In every new structure/model/regime, **confirm the no-treatment control behaves as expected** (here: neutral holds) before reading the treatment (diffuse). A broken control makes the contrast uninterpretable, not negative.
+- Effects can be **entangled with the stimulus design** (needle-question similarity) × structure: a needle that yields a clean effect in one structure may be unfindable (too-low similarity) or trivially findable (too-high / verbatim) in another. A cross-context claim needs a **stimulus whose findability is structure-invariant** (mid-similarity), validated per regime.
+- Don't over-generalize a single-regime clean result; state its regime explicitly (a generality caveat) until a structure-invariant replication exists.
+
+### §0.19 — Substrate flipped to DeepSeek-primary / Claude-anchor (cost + cross-provider validity)
+**Trigger:** *Without an affordable primary substrate, a years-horizon curiosity-driven curriculum can't be fully explored — Haiku at $1/$5 per MTok makes broad sweeps cost-prohibitive — and an all-Anthropic evidence base carries the selection bias the prior-art reviewer flagged. With DeepSeek-primary (v4-flash $0.14/$0.28, ~7–18× cheaper) + Claude spot-anchors, exploration is affordable AND positions are cross-provider by construction.*
+**The decision (2026-06-05, end of Phase 1.0 ext):** the full convention is a CLAUDE.md Code Rule (§ Experiment substrate). Process-stream rationale + caveats recorded here:
+- The DSML tool-call-leak that confounded the cross-family rot run was a **contrived-no-tools artifact** (tool history + no `tools` param), not a general DeepSeek problem — real agent work (Module 2+) *declares* tools → structured tool calls. Smoke-test the declared-tools path at Module 2 entry; native OpenAI-format client is the fallback (§0.17).
+- The needle-similarity entanglement (§0.18) is **provider-independent** (it bit Haiku too) — orthogonal to the substrate choice.
+- This *inverts* the Phase 1.0 tiering (Haiku-primary + Sonnet-spot → DeepSeek-primary + Claude-spot); it improves §0.8 cross-provider grounding rather than weakening it.
+- Standing cost: per-experiment measurement re-validation on DeepSeek (§0.16/§0.17), and Claude-only-feature experiments stay on Claude.
 
 ---
 
@@ -149,3 +171,32 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 
 **Throughline property progress**
 - **Contribution (Property 4) advanced.** Two candidates now have data: localized↔diffuse rot regime + potency dose-response, and capability-dependent failure modes (§3.8). Logged in `tasks/contribution-candidates.md`. Ingest / query / re-evaluation: not this phase.
+
+### Phase 1.0 Extension — Cross-Provider Validation + Substrate (closed 2026-06-10)
+
+> Retro: `docs/phases/phase-1.0-extension-retro.md`. Inconclusive cross-family attempt + the DeepSeek-primary/Claude-anchor substrate adoption. No new position committed → no three-reviewer pass (deferred to Phase 1.1 close).
+
+**What worked**
+- **Anthropic-compatible endpoint → reuse the whole pipeline unchanged.** The `complete_fn`/`count_fn` DI seams paid off again: cross-family wiring was a `--provider` flag, not a rewrite. Byte-identical message structures = no format-translation confound.
+- **Reading sources firsthand** (DeepSeek format spec → "DSML" is leaked internal markup, *not* a documented format; the §1.3 paper re-read). §0.16 held every time.
+- **Honest inconclusive.** Recorded "clause (b) open + harder" + the structure×similarity entanglement rather than forcing a result from a confounded run (Substrate Discipline #2).
+- **Substrate decision shipped with a trigger statement + carve-out** (Claude-only-feature experiments stay on Claude) — passes the rule-admission test.
+
+**What caused friction**
+- **DSML tool-call leak** confounded the cross-family `tool_call_stream` run (a contrived-no-tools artifact; the no-tools fix is Anthropic-specific) → §0.17.
+- **`clean_essay` control broke** (low-sim folio-wrinkle wrecks the neutral control on prose) → §0.18. The clean effect lived in a structure-specific sweet spot.
+- ~$9.5 spent on an inconclusive (but informative) attempt — the entanglement finding is the yield.
+
+**Rule changes proposed**
+- **`[ADD]`** §0.17 (cross-provider needs a provider-neutral structure), §0.18 (verify the control holds before interpreting the treatment), §0.19 (substrate flip → DeepSeek-primary/Claude-anchor). All filed.
+- **`[MODIFY]`** CLAUDE.md: Code Rules += "Experiment substrate: DeepSeek-primary, Claude-anchor"; Current State updated; subagent model-tiering clarified as distinct from the experiment substrate.
+- **`[DELETE]` none.** Considered merging §0.17 and §0.18; rejected — §0.17 is a *provider-format* confound, §0.18 is *control-validity per regime*. Distinct failure modes.
+
+**Synthesis cleanup proposed**
+- §1.8 generality caveat added (cross-structure/provider generality NOT established; clause (b) open). §3.8 abstention added as a 3rd failure mode (caveated; stays 45). §3.6 cross-provider row (inconclusive). No demotions or merges.
+
+**Tool / permission allowlist additions**
+- None. (WebFetch already available; used for the DeepSeek spec + Manus infra re-read.)
+
+**Throughline property progress**
+- **No surface advanced** (Stage 1 — expected). **Property 3 (re-evaluation) exercised in spirit:** §1.8/§3.8 re-evaluated against cross-family evidence, held-with-caveat rather than drifting. The substrate decision improves cross-provider grounding (feeds Property 4 later).

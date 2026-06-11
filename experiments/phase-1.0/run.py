@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_config as cfg  # noqa: E402
 
 from stance.rot.corpus import load_sentences  # noqa: E402
-from stance.secrets import anthropic_api_key  # noqa: E402
+from stance.secrets import anthropic_api_key, deepseek_api_key  # noqa: E402
 from stance.rot.runner import (  # noqa: E402
     accuracy_by_length,
     load_records,
@@ -72,12 +72,22 @@ def main() -> None:
     p.add_argument("--max-len", type=int, default=None, help="cap target length (tokens)")
     p.add_argument("--model", default=cfg.MODEL_PRIMARY)
     p.add_argument(
+        "--provider", choices=["anthropic", "deepseek"], default="anthropic",
+        help="completion provider; 'deepseek' uses the Anthropic-compatible endpoint "
+        "(same message format) but counts tokens on Anthropic-Haiku for a consistent "
+        "cross-provider x-axis. See docs/phases/phase-1.0-extension-plan.md.",
+    )
+    p.add_argument(
         "--competitor-pool",
         help="path to a pinned JSON pool of competitor lines (realism check); "
         "diffuse competitors are sampled from it instead of templated. Output goes "
         "to a pool-tagged file so it never overwrites the templated run.",
     )
     args = p.parse_args()
+
+    # DeepSeek defaults to the v4-flash workhorse unless --model overrides.
+    if args.provider == "deepseek" and args.model == cfg.MODEL_PRIMARY:
+        args.model = "deepseek-v4-flash"
 
     pool: list[str] | None = None
     pool_tag = ""
@@ -102,11 +112,13 @@ def main() -> None:
         return
 
     runs = len(cells) * len(lengths) * len(cfg.DEPTHS) * len(seeds)
-    est = (
-        len(cells) * len(cfg.DEPTHS) * len(seeds) * sum(lengths)
-        / 1_000_000
-        * cfg.INPUT_USD_PER_MTOK
-    )
+    input_tokens = len(cells) * len(cfg.DEPTHS) * len(seeds) * sum(lengths)
+    try:  # provider-accurate estimate from the pinned price table
+        from stance.instrumentation.pricing import cost as _cost  # noqa: PLC0415
+
+        est = _cost(args.model, input_tokens=input_tokens)
+    except KeyError:  # unknown model → fall back to the flat Haiku-tier estimate
+        est = input_tokens / 1_000_000 * cfg.INPUT_USD_PER_MTOK
     print(f"cells: {len(cells)}  runs: {runs}  seeds: {seeds}  model: {args.model}")
     for c in cells:
         print(f"  [item {c.item}] {c.structure:16} {c.competition:10} sim={c.similarity}")
@@ -118,14 +130,31 @@ def main() -> None:
 
     import anthropic
 
-    # Key strictly from .env (never the shell) — see stance.secrets / CLAUDE.md.
-    client = anthropic.Anthropic(api_key=anthropic_api_key())
+    # Keys strictly from .env (never the shell) — see stance.secrets / CLAUDE.md.
+    if args.provider == "deepseek":
+        # Complete on DeepSeek's Anthropic-compatible endpoint (same message format,
+        # so the whole pipeline is reused). Count on Anthropic-Haiku so the x-axis is
+        # one consistent tokenizer across providers (the DeepSeek endpoint has no
+        # count_tokens). See docs/phases/phase-1.0-extension-plan.md.
+        ds_client = anthropic.Anthropic(
+            base_url="https://api.deepseek.com/anthropic", api_key=deepseek_api_key()
+        )
+        count_client = anthropic.Anthropic(api_key=anthropic_api_key())
 
-    def complete(**kw: object) -> object:
-        return client.messages.create(**kw)
+        def complete(**kw: object) -> object:
+            return ds_client.messages.create(**kw)
 
-    def count(**kw: object) -> int:
-        return client.messages.count_tokens(**kw).input_tokens
+        def count(**kw: object) -> int:
+            ckw = {**kw, "model": cfg.MODEL_PRIMARY}  # count on Haiku, not the DeepSeek model
+            return count_client.messages.count_tokens(**ckw).input_tokens
+    else:
+        client = anthropic.Anthropic(api_key=anthropic_api_key())
+
+        def complete(**kw: object) -> object:
+            return client.messages.create(**kw)
+
+        def count(**kw: object) -> int:
+            return client.messages.count_tokens(**kw).input_tokens
 
     filler = load_sentences()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
