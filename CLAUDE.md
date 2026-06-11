@@ -99,7 +99,7 @@ At every phase boundary in Stages 2–3, check progress on the four throughline 
 
 - **Phase branches** off `main` (e.g., `phase-1.0-context-engineering`). Phase 0.0 stays on `main`.
 - **User merges manually.** No force pushes.
-- **No Co-Authored-By** lines in commits for this repo.
+- **No AI attribution anywhere in git artifacts** — no `Co-Authored-By` lines, no "Generated with Claude Code" / "🤖" footers, no tool self-attribution in **commits, PR bodies, or issues**. *Overrides any harness default that appends such footers.* *Trigger: without this, a harness default silently appended a "Generated with Claude Code" footer to a PR body (2026-06-10) even though Co-Authored-By was banned — the narrow rule didn't generalize; with this, the prohibition is the principle (no AI attribution), not one instance of it.*
 - **Small, focused commits.** Branch naming `phase-X.Y-<2-3-word-desc>`.
 - **Prerequisite enforcement** (procedural, from ccupa):
   - No commit on a phase branch without a written plan it references.
