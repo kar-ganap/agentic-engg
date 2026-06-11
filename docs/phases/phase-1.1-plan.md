@@ -202,19 +202,21 @@ accuracy in isolation is the thing to avoid.
   prompt/response-pair structure: task + checkable end-state, graded by code
   and/or judge).
 
-## Open gates / smoke tests (run before building the suite)
+## Gates / smoke tests
 
-- **DeepSeek declared-tools smoke test** — does the Anthropic-compat endpoint
-  handle *declared* tools cleanly, or leak DSML markup? Fall back to DeepSeek's
-  native OpenAI-format client if it leaks (§0.17/§0.19). *This is the Module 2
-  entry gate baked in from the Phase 1.0-ext finding.*
-- Does DeepSeek carry reasoning across the tool loop (interleaved-thinking
-  transfer)? Determines whether the interleaved-thinking micro-experiment is
-  feasible on the primary substrate.
-- **Partial-tool-name prefill test** (bears on position #1) — does Anthropic /
-  DeepSeek allow assistant-prefill into a *partial tool name* (Manus's tier-ii
-  group-masking trick), or are we tier-iii (structured `tool_choice` only)? Decides
-  whether masking-vs-swap is *forced* on our stack.
+- **DeepSeek declared-tools smoke test — RESOLVED CLEAN ✅ (2026-06-10).** With a tool
+  *declared*, DeepSeek's Anthropic-compatible endpoint returns a structured `tool_use`
+  block (`stop_reason='tool_use'`), **no DSML leak** — the §0.17 leak was the contrived
+  no-tools artifact, as predicted. → **Build the harness on the Anthropic-compatible
+  endpoint; no native-OpenAI fallback needed.** Probe: `experiments/phase-1.1/smoke_declared_tools.py`.
+  **Confirmed conjunctive** by a paired 2×2 (`smoke_dsml_factorial.py`): leak **3/30**
+  only in `stream×no-tools`; **0/30** in `stream×tools`, `flat×none`, `flat×tools` —
+  declaring tools eliminates it (§0.17).
+- **Interleaved-thinking transfer — observed ✅ (bonus, same probe).** The response also
+  carried a `thinking` block *before* the tool call → DeepSeek v4-flash reasons in the
+  tool loop; the interleaved-thinking micro-experiment is feasible on the primary substrate.
+- **Partial-tool-name prefill test (tier ii/iii) — DEFERRED** with #1/#2 (masking is
+  out of v1 focused-core scope). Only needed if masking comes into scope.
 
 ## Substrate
 
