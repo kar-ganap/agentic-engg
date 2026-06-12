@@ -383,6 +383,39 @@ since nothing here is measured yet. Only the **committed** positions get priors;
 - **#3 — swap break-even (a crossover exists): prior 70** (near-arithmetic given the cost model + owned 7×, *minus* the DeepSeek-cache-unknown — the 10-pt haircut prices exactly its own retraction risk).
   - **Retraction:** the cache cost model doesn't hold on our substrate — mutating tools is **not** more expensive than carrying them, or carry-cost isn't ~fixed.
 
+## Prior art + #4 contribution reframe (2026-06-12) — CONFIDENCES UNCHANGED
+
+Two refs surfaced (search/WebFetch only — **read the PDFs firsthand before the synthesis
+commits any claim**, §0.16; add both to the reviewer-pass prior-art set):
+- **Proactive-interference / working-memory limits in LLMs** (arXiv:2506.08184) — on
+  *current* models incl. **DeepSeek-V3**, Gemini-2.5, GPT-4.1: retrieval accuracy
+  **log-linear → 0** with **# tracked keys / updates** (an *item-count* axis); error mode =
+  **retrieve a prior interfering value**, shading into **fabrication + primacy** at high
+  interference; **independent of context length** (length p=0.886; Exp B holds length
+  constant); resilience scales with **model size**. This is essentially #4's core mechanism
+  *already documented in a static key-value setting*.
+- **τ-bench** (tool-agent customer-service — our domain): GPT-4o 61% pass@1 / pass^8<25%,
+  but **current leaders ~88%** (Step-3.5-Flash 0.882, GLM-4.7 0.874; o3 0.63) → compounding
+  **milder on frontier** than the GPT-4o figure, *but* v4-flash (small) sits below frontier
+  → more visible on our substrate.
+
+**Contribution reframe (RULER-style):** #4 can NOT claim the bare "items collapse retrieval"
+effect — log-linear decline, interfering-value error mode, items>length are all prior art.
+#4's defensible novelty narrows to: **agentic & self-generated** interference (the agent's
+*own* tool returns in a realistic task) + the **return-shape lever** (#4ii — pruning returns
+as the *fix*) + the **re-fetch-vs-mis-bind strategy contrast** + **cross-provider**.
+
+**Pre-registration refinement (sharper falsifier):** predict mis-bind-rate **log-linear** in
+competition-N, with an **error progression** (mis-bind-dominant at moderate competition →
+fabrication + primacy at high). Pre-commit to the *shape*, not just the direction.
+
+**Confidences: UNCHANGED — #4(i) stays 60.** The mechanism evidence is ~1 year old (May
+2025) — plausibly still correct, but **no confidence move until the PDFs are read firsthand
+and currency confirmed** (and the prior is pre-data regardless). Author judgment, per §0.16.
+
+**Substrate note:** size-resilience predicts v4-flash shows the effect *more*, the larger
+Claude anchor *less* → a built-in size contrast to report (with §0.8's magnitude caveat).
+
 ## Loop & generator design (locked 2026-06-11)
 
 Extends the Phase 0.0 raw loop (`src/stance/loop.py`). **Core reframe: error philosophy
