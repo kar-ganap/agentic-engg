@@ -174,13 +174,22 @@ def test_cost_from_usage() -> None:
     assert abs(s.total_cost_usd - 0.14) < 0.01  # v4-flash input $0.14/MTok × 1M
 
 
+def _selection_task() -> TaskInstance:
+    return TaskInstance(
+        prompt="x", seed=0, ivs={"tier": "selection"}, expected_writes=[],
+        expected_tool="search_users",
+    )
+
+
 def test_selection_wrong_tool() -> None:
-    task = TaskInstance(prompt="x", seed=0, ivs={"tier": "selection"}, expected_writes=[])
-    events = [
-        _evt(0, "search_accounts", {"query": "Jane"}, expected="search_users"),  # wrong tool
-    ]
-    s = score(events, _run(), task)
-    assert s.wrong_tool_count == 1 and ("search_users", "search_accounts") in s.confusion_pairs
+    s = score([_evt(0, "search_accounts", {"query": "Jane"})], _run(), _selection_task())
+    assert s.wrong_tool_count == 1 and not s.success
+    assert ("search_users", "search_accounts") in s.confusion_pairs
+
+
+def test_selection_correct_tool() -> None:
+    s = score([_evt(0, "search_users", {"query": "Jane"})], _run(), _selection_task())
+    assert s.wrong_tool_count == 0 and s.success
 
 
 def test_read_runs_roundtrip(tmp_path: Path) -> None:

@@ -141,7 +141,13 @@ def score(events: list[CallEvent], run: RunRecord, task: TaskInstance) -> TaskSu
         1 for w in task.expected_writes if sum(1 for e in calls if _matches(e, w)) == w.cardinality
     )
     total = len(task.expected_writes)
-    success = total > 0 and passed == total
+    first_tool = calls[0].tool_called if calls else None
+    if total > 0:
+        success = passed == total
+    elif task.expected_tool is not None:
+        success = first_tool == task.expected_tool  # selection: the right tool chosen first
+    else:
+        success = False
 
     # #4 DV
     outcome: str | None = None
@@ -164,13 +170,15 @@ def score(events: list[CallEvent], run: RunRecord, task: TaskInstance) -> TaskSu
     had_setback = any(e.is_error for e in events) or any(e.guard_action == "warn" for e in events)
     recovered = had_setback and success
 
-    # selection tier
-    labelled = [(e.tool_expected, e.tool_called) for e in calls if e.tool_expected is not None]
-    wrong_tool_count = sum(1 for exp, act in labelled if exp != act) if labelled else None
+    # selection tier — DV from task ground truth vs the agent's FIRST tool choice
+    wrong_tool_count: int | None = None
     confusion: list[tuple[str, str]] = []
-    for exp, act in labelled:
-        if exp is not None and act is not None and exp != act:
-            confusion.append((exp, act))
+    if task.expected_tool is not None:
+        if first_tool == task.expected_tool:
+            wrong_tool_count = 0
+        else:
+            wrong_tool_count = 1
+            confusion = [(task.expected_tool, first_tool or "<none>")]
 
     # cost / efficiency
     tot_in = sum((e.usage or {}).get("input_tokens", 0) for e in events)

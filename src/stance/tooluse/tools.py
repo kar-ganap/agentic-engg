@@ -175,9 +175,23 @@ def make_tools(world: World, arm: str, terminal_style: str = "crisp") -> tuple[T
         if not users:
             return err("empty", f"query '{query}'")
         fmt = resolve(response_format)
-        prose = f"Found {len(users)} user(s): " + "; ".join(u.name for u in users)
-        ids = {f"user{i}": u.id for i, u in enumerate(users)}
-        content, rendered = _render(prose, ids, fmt)
+        if len(users) > 1:
+            # AMBIGUOUS terminal state — the loop-guard tier's bait, rendered per
+            # terminal_style: crisp resolves (list + anti-repeat), soft loops (vague).
+            ids = [u.id for u in users]
+            if terminal_style == "soft":
+                content = f"Found {len(users)} results. More results may be available."
+            else:
+                listing = "; ".join(f"{u.id} {u.name}" for u in users)
+                content = (
+                    f"AMBIGUOUS: {len(users)} users match '{query}' ({listing}). "
+                    f"Pick one by id or refine the query; do not repeat this search."
+                )
+            return ToolResult(
+                content=content, is_error=True, error_type="ambiguous",
+                extracted_ids=ids, response_format=fmt, size_tokens=_est_tokens(content),
+            )
+        content, rendered = _render(f"Found 1 user: {users[0].name}", {"user": users[0].id}, fmt)
         return ok(content, rendered, fmt)
 
     def get_full_ticket_history(account_id: str, response_format: str | None = None) -> ToolResult:
@@ -240,6 +254,39 @@ def make_tools(world: World, arm: str, terminal_style: str = "crisp") -> tuple[T
             send_message,
         ),
     )
+
+
+# Selection tier: confusable siblings (pre-namespace) vs disambiguated (post).
+_SIBLINGS_PRE = ["find_user", "lookup_user", "search_accounts", "search_kb", "search"]
+_SIBLINGS_POST = ["account_search", "kb_search", "ticket_search", "order_search", "entity_search"]
+
+
+def make_selection_tools(
+    world: World, density_n: int, namespaced: bool = False
+) -> tuple[Tool, ...]:
+    """Build a selection-tier toolset: the correct user-search tool + `density_n`
+    confusable siblings. Pre-namespace siblings are synonyms/cross-entity (confusable);
+    post-namespace are `{entity}_search` (disambiguated). The §0.18 sweet-spot lives in
+    how confusable the *names* are. Returns tools that each take a `query`."""
+    correct = "user_search" if namespaced else "search_users"
+    siblings = (_SIBLINGS_POST if namespaced else _SIBLINGS_PRE)[:density_n]
+    schema = {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}
+
+    def user_fn(query: str) -> ToolResult:
+        users = world.search_users(query)
+        if not users:
+            return ToolResult(content="No matching users.", is_error=True, error_type="empty")
+        names = "; ".join(f"{u.id} {u.name}" for u in users)
+        return ToolResult(content=f"Users: {names}", extracted_ids=[u.id for u in users],
+                          size_tokens=_est_tokens(names))
+
+    def sibling_fn(query: str) -> ToolResult:
+        return ToolResult(content="No matching records.", is_error=True, error_type="empty")
+
+    tools = [Tool(correct, "Find a customer (user) by name.", schema, user_fn)]
+    for name in siblings:
+        tools.append(Tool(name, f"Search {name.replace('_', ' ')}.", schema, sibling_fn))
+    return tuple(tools)
 
 
 def dispatch(
