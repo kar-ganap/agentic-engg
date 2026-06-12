@@ -45,3 +45,27 @@
 **Status:** filed 2026-06-04 from the Phase 1.0 Sonnet spot-check. Low confidence (45); re-evaluate after the fuller test.
 
 **Adjacencies:** synthesis §3.8, §1.8, §5.2; Chroma model-capability finding (lower models rot earlier — but non-monotonic in size/recency); eval-design literature on refusal vs. accuracy.
+
+---
+
+## [CANDIDATE-CONTRIBUTION] Agentic self-fetched values resist diffuse rot
+
+**Claim (tentative):** the diffuse-competition retrieval collapse documented in
+*passive* settings (§1.8; proactive-interference / WM-limits, arXiv:2506.08184) may
+**not** transfer to agentic tasks where the agent **fetches** the needle itself.
+Phase 1.1 #4 chain sweep: DeepSeek-v4-flash kept 55/55 correct-use with the needle
+(an `account_id` it obtained via a labeled `get_order` call) buried under ~186k
+tokens and 8 same-format competitors — recalled from memory, no re-fetch.
+
+**Why it might be real:** an actively-fetched value sits in a structurally findable
+tool_result ("the account I looked up for this order"), unlike a needle anonymously
+buried in prose. Active acquisition + structure may immunize against the burial that
+collapses passive retrieval — the agentic-vs-passive distinction.
+
+**Status:** filed 2026-06-12 from the #4 chain sweep (`experiments/phase-1.1/results.md`).
+**Confounded** — the competitors weren't same-frame rivals (§0.20), so it's inconclusive
+whether this is immunity or just absent rivalry. Needs: (1) same-frame rival competitors,
+(2) an active-vs-passive A/B, (3) a Claude spot-anchor (§0.8). Do not claim until separated.
+
+**Adjacencies:** synthesis §1.8 (clause b — cross-setting generality), §3.6; the WM /
+proactive-interference literature (passive setting); RULER (multi-key NIAH, passive).

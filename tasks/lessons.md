@@ -112,6 +112,11 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 - This *inverts* the Phase 1.0 tiering (Haiku-primary + Sonnet-spot → DeepSeek-primary + Claude-spot); it improves §0.8 cross-provider grounding rather than weakening it.
 - Standing cost: per-experiment measurement re-validation on DeepSeek (§0.16/§0.17), and Claude-only-feature experiments stay on Claude.
 
+### §0.20 — Competitor PRESENCE ≠ competitor RIVALRY (verify discrimination pressure, not just volume)
+**Trigger:** *Without this, a retrieval-collapse experiment can produce a "null" that's actually uninterpretable — the manipulation moved volume + competitor *presence* but not genuine *discrimination pressure*. The Phase 1.1 #4 chain sweep got 55/55 correct-use with the needle buried under ~186k tokens and 8 same-format competitors present (so the manipulation bit on volume + presence), because the competitors were passing ticket-mentions, not same-frame rivals for "the holder of order O" — the agent never faced a real "which of these candidates" choice. With this, you confirm the stimulus offers plausible same-frame alternatives (the §0.18 sweet-spot, now about RIVALRY) before reading a null as a refutation.*
+- A null where competitors are present-but-not-rivals is **inconclusive, not a refutation** (cf. §1.8 clause (b), the clean_essay control). Generalizes §0.18 from static haystacks to agentic tasks.
+- Bonus hypothesis surfaced: **agentic self-production may immunize** — when the agent *fetched* the needle via a labeled tool call (vs. a passively-dumped value), it recalls it under heavy burial. A contribution candidate, but confounded with the rivalry gap; an active-vs-passive A/B + same-frame rivals are needed to separate them.
+
 ---
 
 ## Phase-specific notes (chronological)
