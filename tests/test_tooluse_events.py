@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from stance.tooluse.events import CallEvent, EventLogger, RunRecord
+from stance.tooluse.events import CallEvent, EventLogger, RefStore, RunRecord
 
 
 def test_call_event_minimal_and_roundtrip() -> None:
@@ -58,3 +58,14 @@ def test_logger_records_usage_and_extracted_ids(tmp_path: Path) -> None:
     assert d["usage"]["input_tokens"] == 1234
     assert d["context_size_at_call"] == 1234
     assert d["extracted_ids"] == ["A-7731"]
+
+
+def test_refstore_is_content_addressed_and_recoverable(tmp_path: Path) -> None:
+    store = RefStore(tmp_path / "refs")
+    ref1 = store.store("a big tool result with id A-7731")
+    ref2 = store.store("a big tool result with id A-7731")
+    ref3 = store.store("a different result")
+    assert ref1 == ref2 and ref1 != ref3  # content-addressed: same text -> same ref (dedup)
+    assert ref1.startswith("sha256:")
+    sha = ref1.split(":", 1)[1]
+    assert (tmp_path / "refs" / f"{sha}.txt").read_text() == "a big tool result with id A-7731"

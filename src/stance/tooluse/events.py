@@ -9,6 +9,7 @@ Schema: docs/phases/phase-1.1-plan.md § "Eval record schemas (v1)".
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from dataclasses import asdict, dataclass, field
@@ -73,6 +74,7 @@ class RunRecord:
     started: float | None = None
     ended: float | None = None
     final_answer_ref: str | None = None
+    note: str | None = None  # free-text (e.g. the exception repr on a crash) — auditability
 
     def to_jsonl(self) -> str:
         return json.dumps(asdict(self), sort_keys=True)
@@ -101,3 +103,19 @@ class EventLogger:
     def log_run(self, record: RunRecord) -> None:
         with self.runs_path.open("a", encoding="utf-8") as f:
             f.write(record.to_jsonl() + "\n")
+
+
+class RefStore:
+    """Content-addressed side store for big payloads (final answers, tool results,
+    reasoning). The event holds a `sha256:...` ref; the text lives in
+    `<root>/<sha>.txt`. Same text → same ref (natural dedup). This is
+    return-a-reference (#4) applied to our own logging — keeps the JSONL light."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        root.mkdir(parents=True, exist_ok=True)
+
+    def store(self, text: str) -> str:
+        sha = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+        (self.root / f"{sha}.txt").write_text(text, encoding="utf-8")
+        return f"sha256:{sha}"
