@@ -147,6 +147,7 @@ def gen_transcript(
     n_competitors: int,
     target_tokens: int,
     pool: Sequence[str] | None = None,
+    taken: Collection[str] = (),
 ) -> tuple[str, list[str]]:
     """A support-conversation string of ~`target_tokens`, embedding `n_competitors`
     unique competitor account-ids (the diffuse competitors).
@@ -154,13 +155,15 @@ def gen_transcript(
     Returns `(text, competitor_ids)` — the ids are guaranteed to appear in `text`,
     so a later rendered-id check is exact. `pool` (if given) supplies competitor
     line templates with a `{cid}` placeholder — the realism hook (plan §0.13).
+    `taken` lets the caller reserve ids (e.g. the needle + prior competitors) so the
+    generated competitors never collide with them — uniqueness is load-bearing (#2).
     """
     templates = list(pool) if pool else _COMPETITOR_TEMPLATES
     comp_ids: list[str] = []
-    taken: set[str] = set()
+    seen: set[str] = set(taken)
     for _ in range(n_competitors):
-        cid = gen_id(rng, "A", taken)
-        taken.add(cid)
+        cid = gen_id(rng, "A", seen)
+        seen.add(cid)
         comp_ids.append(cid)
 
     lines: list[str] = [rng.choice(templates).format(cid=cid) for cid in comp_ids]

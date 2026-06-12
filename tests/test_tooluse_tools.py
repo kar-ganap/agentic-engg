@@ -123,6 +123,21 @@ def test_large_output_tool_reports_embedded_ids() -> None:
     assert r.size_tokens > 0
 
 
+def test_get_ticket_returns_transcript_and_embedded_ids() -> None:
+    world = World()
+    acct = Account(id="A-7731", holder="Jane Doe")
+    world.accounts[acct.id] = acct
+    world.tickets["T-1"] = Ticket(
+        id="T-1", account_id=acct.id, subject="x",
+        transcript="...transcript mentioning A-4402...", embedded_ids=("A-4402",),
+    )
+    tools = make_tools(world, "A")
+    ok = dispatch(tools, "get_ticket", {"ticket_id": "T-1"}, terminal_style="crisp")
+    assert not ok.is_error and "A-4402" in ok.extracted_ids and ok.size_tokens > 0
+    miss = dispatch(tools, "get_ticket", {"ticket_id": "T-9"}, terminal_style="crisp")
+    assert miss.is_error and miss.error_type == "not_found"
+
+
 def test_terminal_style_crisp_vs_soft_differ() -> None:
     crisp = render_error("not_found", "order O-0000", terminal_style="crisp")
     soft = render_error("not_found", "order O-0000", terminal_style="soft")

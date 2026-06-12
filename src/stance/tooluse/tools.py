@@ -156,10 +156,19 @@ def make_tools(world: World, arm: str, terminal_style: str = "crisp") -> tuple[T
         if order is None:
             return err("not_found", f"order {order_id}")
         fmt = resolve(response_format)
+        ticket_ids = [t.id for t in world.tickets_for(order.account_id)]
         elig = "eligible" if order.eligible else "not eligible"
-        prose = f"Order placed {order.days_ago} days ago, {elig} for return"
-        content, ids = _render(prose, {"order": order.id, "account": order.account_id}, fmt)
-        return ok(content, ids, fmt)
+        prose = (
+            f"Order placed {order.days_ago} days ago, {elig} for return; "
+            f"{len(ticket_ids)} related ticket(s)"
+        )
+        # surface the account (the needle) + the ticket handles (for the review sub-goal);
+        # reviewing a ticket goes by ticket_id, so it does NOT re-touch the needle (#4 hold).
+        ids = {"order": order.id, "account": order.account_id}
+        for i, tid in enumerate(ticket_ids):
+            ids[f"ticket{i}"] = tid
+        content, rendered = _render(prose, ids, fmt)
+        return ok(content, rendered, fmt)
 
     def search_users(query: str, response_format: str | None = None) -> ToolResult:
         users = world.search_users(query)
@@ -179,6 +188,14 @@ def make_tools(world: World, arm: str, terminal_style: str = "crisp") -> tuple[T
         text = "\n\n".join(t.transcript for t in tickets) or "(no ticket history)"
         embedded = [eid for t in tickets for eid in t.embedded_ids]
         return ok(text, [account_id, *embedded], fmt)
+
+    def get_ticket(ticket_id: str, response_format: str | None = None) -> ToolResult:
+        ticket = world.tickets.get(ticket_id)
+        if ticket is None:
+            return err("not_found", f"ticket {ticket_id}")
+        fmt = resolve(response_format)
+        # large output keyed by ticket_id (NOT the needle); surfaces the competitor ids it embeds.
+        return ok(ticket.transcript or "(empty)", [ticket_id, *ticket.embedded_ids], fmt)
 
     def send_message(account_id: str, body: str, response_format: str | None = None) -> ToolResult:
         if world.get_account(account_id) is None:
@@ -206,6 +223,12 @@ def make_tools(world: World, arm: str, terminal_style: str = "crisp") -> tuple[T
             "Return the full conversation history for an account (large).",
             schema({"account_id": {"type": "string"}}, ["account_id"]),
             get_full_ticket_history,
+        ),
+        Tool(
+            "get_ticket",
+            "Return the full transcript of one support ticket by id (large).",
+            schema({"ticket_id": {"type": "string"}}, ["ticket_id"]),
+            get_ticket,
         ),
         Tool(
             "send_message",
