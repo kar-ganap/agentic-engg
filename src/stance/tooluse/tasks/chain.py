@@ -46,7 +46,10 @@ def build_chain_task(
     taken.add(user.id)
     account = gen_account(rng, taken, holder=user.name)
     taken.add(account.id)
-    order = gen_order(rng, taken, account_id=account.id)
+    # Stage an ELIGIBLE order (days_ago ≤ 30): the task presumes a refund should be
+    # confirmed, so an ineligible order makes the success condition incoherent — a
+    # capable agent correctly refuses (smoke 2026-06-12 caught this). §0.18 coherence.
+    order = gen_order(rng, taken, account_id=account.id, days_ago=rng.randint(1, 30))
     taken.add(order.id)
     needle_id = account.id  # what send_message needs; produced by get_order
 

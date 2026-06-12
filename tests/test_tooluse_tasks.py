@@ -35,6 +35,14 @@ def test_competitors_unique_distinct_from_needle_and_in_pool() -> None:
     assert all(c in t.transcript for t in world.tickets.values() for c in t.embedded_ids)
 
 
+def test_staged_order_is_eligible_so_the_task_is_coherent() -> None:
+    # the prompt presumes a refund; an ineligible order would make a capable agent
+    # correctly refuse → mislabeled failure (smoke 2026-06-12). §0.18 coherence.
+    world, _ = build_chain_task(seed=4, depth=3, fill_tokens=1500, competition_n=2)
+    order = next(iter(world.orders.values()))
+    assert order.eligible is True
+
+
 def test_zero_competition_is_the_control() -> None:
     world, task = build_chain_task(seed=3, depth=3, fill_tokens=1500, competition_n=0)
     embedded = [cid for t in world.tickets.values() for cid in t.embedded_ids]

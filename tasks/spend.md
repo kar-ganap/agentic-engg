@@ -15,9 +15,10 @@
 | 2026-06-05 | 1.0-ext | cross-family (DeepSeek) | DeepSeek | deepseek-v4-flash | 9.28M / tiny | $1.30 | 315 runs tool_call_stream low-sim via Anthropic-compat endpoint. Confounded (DSML tool-call leak); diffuse = abstention not collapse. Inconclusive for §1.8 clause(b). |
 | 2026-06-05 | 1.0-ext | cross-structure (clean_essay) | Anthropic | claude-haiku-4-5 | 8.17M / ~0.005M | $8.17 | 315 runs clean_essay low-sim (neutral/localized/diffuse, 5 seeds to 100k). Neutral control broken by folio-wrinkle on prose → effect not isolable. Establishes structure×similarity entanglement (`results-cross-family.md`). |
 | 2026-06-10 | 1.1 | entry-gate smokes (declared-tools + DSML 2×2) | DeepSeek | deepseek-v4-flash | ~1.3M / ~0.06M | ~$0.19 (est.) | Build-path gate. Declared-tools probe → CLEAN (structured tool_use); 120-call paired 2×2 → DSML leak 3/30 only in stream×no-tools, 0/30 elsewhere (conjunctive, §0.17). `experiments/phase-1.1/smoke_*.py`. Est. — usage not summed (cheap smoke). |
+| 2026-06-12 | 1.1 | e2e pipeline smoke (1 chain cell) | DeepSeek | deepseek-v4-flash | ~0.036M / tiny | ~$0.003 | Full #4 pipeline end-to-end: build_chain_task→make_tools→run_tool_loop→score. 2 runs (run 1 caught + fixed an order-eligibility coherence bug; run 2 → correct-use ✓, control holds at low competition). Exact from response.usage. `experiments/phase-1.1/smoke_e2e.py`. |
 
 > **Un-itemized iteration:** cumulative Haiku spend *including* debugging runs that were overwritten (count_tokens-validation failures, the max_tokens=64 truncation era, tool-param experiments — lessons §0.4/§0.11) ran a loose tally of ~$42. Those were not logged per-call, so only the regeneration cost above is reproducible. **Lesson:** log spend at run time, not retroactively (proposed §0.12).
 
 ## Running total
 
-**~$39.01** reproducible (Phase 1.0: Haiku $15.80 + Sonnet $3.51 + baseline $5.37 + realism $4.26 + KV-cache $0.42; ext: DeepSeek $1.30 + cross-structure $8.17; Phase 1.1: entry-gate smokes ~$0.19) — cumulative incl. un-logged iteration ≈ $63. Soft cap $75 (lifted 2026-06-04).
+**~$39.01** reproducible (Phase 1.0: Haiku $15.80 + Sonnet $3.51 + baseline $5.37 + realism $4.26 + KV-cache $0.42; ext: DeepSeek $1.30 + cross-structure $8.17; Phase 1.1: entry-gate smokes ~$0.19 + e2e smoke ~$0.003) — cumulative incl. un-logged iteration ≈ $63. Soft cap $75 (lifted 2026-06-04).

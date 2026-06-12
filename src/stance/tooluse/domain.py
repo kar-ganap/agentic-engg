@@ -99,8 +99,16 @@ def gen_account(rng: random.Random, taken: Collection[str], holder: str) -> Acco
     return Account(id=gen_id(rng, "A", taken), holder=holder)
 
 
-def gen_order(rng: random.Random, taken: Collection[str], account_id: str) -> Order:
-    return Order(id=gen_id(rng, "O", taken), account_id=account_id, days_ago=rng.randint(1, 90))
+def gen_order(
+    rng: random.Random, taken: Collection[str], account_id: str, days_ago: int | None = None
+) -> Order:
+    """`days_ago` defaults to a random 1–90; pass it to control return-eligibility
+    (≤30 = eligible) — tasks that presume a refund must stage an *eligible* order."""
+    return Order(
+        id=gen_id(rng, "O", taken),
+        account_id=account_id,
+        days_ago=days_ago if days_ago is not None else rng.randint(1, 90),
+    )
 
 
 def gen_ticket(
