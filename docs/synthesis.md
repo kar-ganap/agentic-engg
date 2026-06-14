@@ -54,7 +54,28 @@
 - Model behavior when stale tool references exist: does it try to call removed tools? hallucinate new names? successfully ignore?
 - Rate of tool-name validation errors under different mutation patterns.
 
-**Status:** candidate (pre-2.0). Registered 2026-06-01. Preconditions added 2026-06-01.
+**Carry-vs-swap break-even (#3 refinement, 2026-06-14, confidence 78).** The "don't mutate" advice
+above collides with "carry a minimal viable tool set" once the tool **universe** is large: keeping
+all of it stable means every cached turn re-reads a big tool block (at the hit rate), while swapping
+to the few tools a task needs keeps each request small but **busts the cache** at each task boundary.
+There is a **break-even in superset size**: **carry a fixed superset below it (§1.1-compliant), swap a
+minimal per-task set above it.** Measured (DeepSeek v4-flash, `experiments/phase-1.1/results-3.md`):
+carry-cost is **linear** in superset tool-tokens (paid once at miss + (T−1)× at hit ⇒ slope MISS+
+(T−1)·HIT), swap-cost is **flat** in superset size (set by #busts × full-request re-miss). Predict→
+verify: pre-registered crossover N\* ≈ **5,111** tool-tokens (analytic cost model from the prefix-cache
+smoke), empirically **6,461** (~26%; residual = measured swap floor +22% over the nominal target).
+*Scope:* the **existence + cost model** is cross-provider (follows from any prefix cache with
+hit < miss); the **location** is provider- and session-shape-dependent — it scales with the hit/miss
+ratio (DeepSeek ~50× vs Anthropic ~10×) and especially the **cache TTL** (DeepSeek hours-days vs
+Anthropic 5-min: a session whose turns are spaced beyond TTL loses carry's cached-prefix advantage and
+the crossover shoves toward swap). So **this qualifies the cache leg, it does not refute it** — §1.1
+stable-prefix discipline is the cheaper strategy *while the universe is small*. The model-**coherence**
+leg is untouched (swap's *correctness* cost is separate and still untested). *Retraction (this sub-claim,
+down 20–30):* a controlled measurement showing no carry/swap crossover within a realistic superset range
+on any prefix-cached provider, OR carry remaining cheaper at all superset sizes (cost not linear in tool-
+block size). *Anchor pending:* Claude (10× discount / 5-min TTL) to confirm the location moves as modelled.
+
+**Status:** candidate (pre-2.0). Registered 2026-06-01. Preconditions added 2026-06-01. #3 carry-vs-swap break-even refinement added 2026-06-14 (conf 78).
 
 ---
 
@@ -269,20 +290,22 @@ Load-bearing only in the **intersection** of:
 
 **Stance:** the onset and severity of context rot is governed primarily by the *signal-to-noise ratio* of the context, not by raw token count. At fixed length, adding semantically-similar competing content (distractors) sharply degrades performance; at fixed signal density, length matters far less. "Context is a finite resource" is more precisely "*high-signal* context is a finite resource."
 
-**Confidence:** 78 (raised 70→78, 2026-06-04; trimmed from a proposed 80 in the three-reviewer pass — the +8 is licensed by the *neutral-arm length-only null* (no knee to 100k with zero competition, the single strongest fact), not by replication breadth: it rests on one agentic structure (`tool_call_stream`) × low-sim × one provider family. Reaches ~82 when a second structure (`research_doc_stream`) replicates; ~85 on cross-family (DeepSeek). Both literature (Chroma) and own measurements support it; cross-model within-family (Haiku + Sonnet). Mechanism-level → generalizes; magnitudes setup-specific (§0.8).
+**Confidence:** 80 (raised 78→80, 2026-06-13; the +2 extends the *neutral-arm length-only null* — §1.8's single strongest fact — **cross-family and out to ~1M tokens**: DeepSeek **v4-pro** neutral/high-sim/`clean_essay` holds flat at 1.00 to ~94k (matching Haiku on the identical haystacks), with only a *mild* pure-length degradation at extreme length (0.67 @758k, ≈7× beyond the original range) — far above any diffuse knee, so it *reinforces* the competition-first ordering rather than threatening it. Capped at 80, not ~85, because this generalizes **pillar B** ("not length"), not the **diffuse collapse** (clause b), which remains provider-confounded on DeepSeek; and because the weak v4-flash was too abstention-noisy to characterize. The 78→80 reaches the figure the three-reviewer pass trimmed in 2026-06-04, now licensed by cross-provider evidence. Prior 70→78 (2026-06-04) rested on one agentic structure (`tool_call_stream`) × low-sim × one provider family; reaches ~85 only on a clean cross-family *diffuse-collapse* replication. Both literature (Chroma) and own measurements support it; cross-model within-family (Haiku + Sonnet) + cross-family neutral-null (DeepSeek v4-pro). Mechanism-level → generalizes; magnitudes setup-specific (§0.8). See `experiments/phase-1.0/results-length-extension.md`.
 
-**Retraction criterion (the actual commitment):** demote if **(a)** any model shows a *neutral* (no-competition) knee *below* its diffuse knee — i.e. pure length rots before competition does, restoring token-count as primary — or **(b)** diffuse competition *fails* to collapse confident retrieval in a different model family. Clause (b)'s *within-family* leg is discharged (Sonnet 4.6 replicates the collapse); the *cross-family* leg is **open** (see caveat).
+**Retraction criterion (the actual commitment):** demote if **(a)** any model shows a *neutral* (no-competition) knee *below* its diffuse knee — i.e. pure length rots before competition does, restoring token-count as primary — or **(b)** diffuse competition *fails* to collapse confident retrieval in a different model family. Clause (b)'s *within-family* leg is discharged (Sonnet 4.6 replicates the collapse); the *cross-family* leg is **open** (see caveat). Clause (a) is **reinforced** by the 2026-06-13 length-extension: DeepSeek v4-pro's *neutral* degradation appears only at ~758k — ≈7× *above* its competition knee — so pure length rots much *later* than competition, never before (`results-length-extension.md`).
 
 **Generality caveat (cross-family/cross-structure attempt, 2026-06-05; `experiments/phase-1.0/results-cross-family.md`):** the confidence is grounded in **one structure × low-sim** (`tool_call_stream`). The attempt to extend it found the effect is **entangled with structure × needle-question-similarity** and does *not* port straightforwardly: (i) DeepSeek on `tool_call_stream` is **confounded** — the tool-call history primes provider-specific tool-call continuation (the §0.11 no-tools fix is Anthropic-specific), and DeepSeek's diffuse degradation appears as *abstention*, not the discriminability collapse; (ii) the provider-neutral `clean_essay` structure can't isolate the effect — low-sim wrecks the *control* (the model won't bridge folio↔manuscript in a prose framing, failing even with zero competitors), and high-sim makes diffuse too easy (verbatim exact-phrase match). So the clean `tool_call_stream` result exploited a structure-specific sweet spot; **cross-structure / cross-provider generality is not established**, and clause (b) is harder to discharge than a single replication run. A clean test needs a *structure-invariant* needle (mid-similarity). This bounds the *generality*, not the headline within its regime.
 
 **Preconditions:**
 - Retrieval or reasoning over long context (the regime where rot occurs at all; ≥ ~knee length).
-- A meaningful signal/noise distinction exists (there IS competing/irrelevant content to vary). All-signal or all-noise context → claim vacuous.
+- A meaningful signal/noise distinction exists (there IS competing/irrelevant content to vary). All-signal or all-noise context → claim vacuous. **Boundary confirmed (2026-06-13, `experiments/phase-1.1/run_binding.py`):** *structured exact-key* retrieval (id lookup) has no S/N gradient — exact match is position-invariant — and is robust to diffuse competition (100 same-frame rivals) *and* extreme length (~953k), 0 mis-binds. §1.8 is a claim about *prose/semantic* retrieval; exact-key lookup falls outside its preconditions.
 - Frontier autoregressive models (Chroma's tested class).
 
 **Supporting evidence:**
 - **Experiment (own substrate, direct — Phase 1.0 Exercise A, `experiments/phase-1.0/results.md`):** at matched length, **diffuse** competition (pervasive task-related distractors, count ∝ L) collapsed confident retrieval, while **neutral** (topic-unrelated filler) and **localized** (fixed distractor count) held flat to 100k. Length held constant in the neutral arm produced *no* knee through 100k → competition, not token count, drives onset. The cleanest separation we have between the two candidate drivers, and it replicated across two models.
 - **Experiment (potency dose-response — realism check, 2026-06-05):** three diffuse pools at increasing competitor relatedness gave a **monotone** collapse — low-relatedness pool (no collapse, holds ~1.0) < mixed natural-phrasing (knee ~50k) < saturated templated (knee ~10k, floor 0 by 20k). Holding count ≈ fixed and raising *potency* moves the knee earlier — direct evidence that *signal-to-noise* (not token count) governs onset. (A preview of the §3.6/§5 relatedness sweep.)
+- **Experiment (cross-provider length-extension — §1.8 pressure test, 2026-06-13, `results-length-extension.md`):** the neutral-arm null extended to a **non-Anthropic family** and **~1M tokens**. DeepSeek **v4-pro** neutral/high-sim/`clean_essay` holds flat at 1.00 to ~94k (matching Haiku on the identical haystacks) and degrades only *mildly* at extreme length (0.67 @758k) — a small, **capability-modulated** pure-length effect emerging ≈7× beyond §1.8's measured range, far above the diffuse knee. The weaker **v4-flash** is too abstention-noisy (~0.4–0.7 across all lengths, incl. 10k) to characterize — and a 2-seed pilot's clean v4-flash "collapse" did not survive 5 seeds (artifact; lessons §0.21). Failure mode = **abstention** (empty/`UNKNOWN`), consistent with §3.8. Strengthens pillar B ("not length") **cross-provider**; clause (b) (diffuse collapse cross-family) untouched.
+- **Experiment (agentic self-generated extension — Phase 1.1 #4-v2, 2026-06-14, `experiments/phase-1.1/results-4v2.md`):** the diffuse collapse is **provenance-blind**. Across four *high-discriminability* agentic designs (self-generated needles — exact-key/recency/role-binding/two-phase-rolebind) retrieval held (0 mis-binds); a *low-discriminability* cue induced the §1.8 **lure-capture identically whether the values were self-generated or passively dumped** (same scenario/seed, both arms). So §1.8's identification collapse appears in **self-generated agentic trajectories**, not just passive prose, and self-generation neither triggers nor prevents it (**#4 ⊆ §1.8**; the apparent "agentic immunity" is a structural near-tautology — fetching ≠ wall-retrieval). Magnitude uncommittable (the gradeable/luring sweet-spot, §0.18); recorded as a cross-setting scope note, **no confidence change**.
 - Literature (direct): Chroma *Context Rot* — distractor experiments (semantically-similar competing content destroys the free budget at fixed length); needle-question-similarity (higher signal → later knee). See §4 Chroma, §5.2.
 - Literature (consistent): Anthropic "smallest set of high-signal tokens"; Manus (signal-dense failures worth keeping, §1.2).
 - Mechanistic: attention is finite and competitive; semantically-similar distractors compete with the needle for attention more than dissimilar filler does. The **diffuse** regime adds a length-coupled noise term the **localized** regime lacks (competitor mass ∝ L) — see §3.6 pre-registration; confirmed by the diffuse-collapses / localized-holds split.
@@ -298,7 +321,7 @@ Load-bearing only in the **intersection** of:
 
 **Relationship to other entries:** promoted from the §2.1 resolution sketch on direct Chroma evidence. Underlies §2.4 (the knee/budget is set by S/N), §5.2 (parameterized response), §1.7 (uniformity is one form of S/N degradation), §1.2 (failures are high-signal). The "data quality > quantity" row of §5.1.
 
-**Status:** candidate (pre-2.0). Registered 2026-06-01. Confidence 70→78 on own-substrate experimental confirmation 2026-06-04; retraction criterion added.
+**Status:** candidate (pre-2.0). Registered 2026-06-01. Confidence 70→78 on own-substrate experimental confirmation 2026-06-04; 78→80 on the cross-provider neutral-null length-extension to ~1M (DeepSeek v4-pro), 2026-06-13. Retraction criterion added.
 
 ---
 

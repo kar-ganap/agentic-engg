@@ -42,30 +42,64 @@
 
 **Dependencies:** synthesis §3.8 (provisional, n=9). Needs a fuller test — ≥3 models on a capability ladder, refusal-affordance control (does removing the explicit "reply UNKNOWN" change it?), ≥5 seeds, multiple (structure × similarity) cells. Cross-provider (DeepSeek) tiers would strengthen.
 
-**Status:** filed 2026-06-04 from the Phase 1.0 Sonnet spot-check. Low confidence (45); re-evaluate after the fuller test.
+**Status:** filed 2026-06-04 from the Phase 1.0 Sonnet spot-check. Low confidence (45); re-evaluate after the fuller test. **Update 2026-06-13 (§1.8 length-extension, `results-length-extension.md`):** a DeepSeek capability-ladder data point landed — under **pure-length** stress (not competition), **v4-pro** holds the neutral needle (1.00@94k, 0.67@758k) while **v4-flash** is abstention-noisy (~0.4–0.7 across all lengths). Both fail by **abstention** (empty/`UNKNOWN`), never confabulation. So the capability gradient generalizes from competition-stress to **length-stress**, and the *stressor that triggers collapse* is itself capability-dependent (capable: competition-only; weak: competition + length). Still low-confidence (the fuller refusal-affordance-controlled test is unrun); but the cross-provider tier comparison the candidate wanted now has its first point.
 
 **Adjacencies:** synthesis §3.8, §1.8, §5.2; Chroma model-capability finding (lower models rot earlier — but non-monotonic in size/recency); eval-design literature on refusal vs. accuracy.
 
 ---
 
-## [CANDIDATE-CONTRIBUTION] Agentic self-fetched values resist diffuse rot
+## [CANDIDATE-CONTRIBUTION] Agentic self-generation: a structural accessibility advantage (≈ §1.8, not a new immunity)
 
-**Claim (tentative):** the diffuse-competition retrieval collapse documented in
-*passive* settings (§1.8; proactive-interference / WM-limits, arXiv:2506.08184) may
-**not** transfer to agentic tasks where the agent **fetches** the needle itself.
-Phase 1.1 #4 chain sweep: DeepSeek-v4-flash kept 55/55 correct-use with the needle
-(an `account_id` it obtained via a labeled `get_order` call) buried under ~186k
-tokens and 8 same-format competitors — recalled from memory, no re-fetch.
+**Original claim (tentative, filed 2026-06-12):** the diffuse-competition collapse documented in
+*passive* settings (§1.8; arXiv:2506.08184) may **not** transfer to agentic tasks where the agent
+**fetches** the needle itself — an "agentic immunity."
 
-**Why it might be real:** an actively-fetched value sits in a structurally findable
-tool_result ("the account I looked up for this order"), unlike a needle anonymously
-buried in prose. Active acquisition + structure may immunize against the burial that
-collapses passive retrieval — the agentic-vs-passive distinction.
+**Disposition: DEMOTED/REFRAMED 2026-06-14 — not a novel effect (`results-4v2.md`, #4-v2).** Five
+designs settled it. Across **four high-discriminability** designs (exact-key binding to 953k;
+semantic role-binding N≤6; recency N=40; two-phase rolebind N=16 buried to 37k) agentic retrieval
+held (0 mis-binds). A fifth **low-discriminability** design (diffuse cue + same-type lures) *did*
+collapse — but as the **§1.8 identification failure, identically active vs passive** (lure-capture
+on the same scenario/seed in both arms). So:
 
-**Status:** filed 2026-06-12 from the #4 chain sweep (`experiments/phase-1.1/results.md`).
-**Confounded** — the competitors weren't same-frame rivals (§0.20), so it's inconclusive
-whether this is immunity or just absent rivalry. Needs: (1) same-frame rival competitors,
-(2) an active-vs-passive A/B, (3) a Claude spot-anchor (§0.8). Do not claim until separated.
+> **Agentic self-generation confers a *structural accessibility advantage*** — the value arrives
+> fresh / recent / uniquely-labeled, an advantage §1.8's collapse regime lacks. It **sidesteps**
+> wall-retrieval (a near-tautology: fetching ≠ retrieving from a buried wall) rather than refuting
+> §1.8. When a collapse *is* induced (low-disc cue), it's §1.8 acting at the identification step —
+> **provenance-blind**, neither caused nor cured by self-generation. **#4 ⊆ §1.8.**
 
-**Adjacencies:** synthesis §1.8 (clause b — cross-setting generality), §3.6; the WM /
-proactive-interference literature (passive setting); RULER (multi-key NIAH, passive).
+So: **weaker than hoped** — not a separate mechanism. The genuinely-novel agentic question (does
+tool-*retrieval* beat in-context disambiguation under diffuse competition?) is the **RAG-vs-grep**
+debate (a later module), and *that* — not "immunity" — is where to revisit it, using §1.8's own
+unique-answer needle ported to the agentic frame (the only way to get a gradeable collapse *rate*;
+the fuzzy-semantic cues here can't, §6b gradeable/luring tradeoff).
+
+**Adjacencies:** synthesis §1.8; arXiv:2506.08184 (proactive interference); RULER (multi-key NIAH);
+the RAG-vs-grep debate (Module later). Bonus harness artifact: the **stem-checker** (`shared_stems`)
++ the five reusable tiers.
+
+---
+
+## [CANDIDATE-CONTRIBUTION] Agents don't exploit return-format choices — so fix the format
+
+**Pitch:** A common tool-design instinct is to let the agent pick a return format per call (a
+`response_format` enum) to economize. Measured (#6, `experiments/phase-1.1/results-6.md`):
+**none of three models — v4-flash, v4-pro, Sonnet 4.6 (two families, ~7× capability span) —
+spontaneously exploits the choice** — all default to the verbose `detailed` form *everywhere*, even
+on returns where a concise form is free (so not a weak-model artifact). So the choice is
+unexploited overhead; a fixed **inline-detailed** return dominates, an always-attach **handle-block**
+is pure overhead, and pruning to **concise** breaks any downstream that needs the handle. Concrete,
+cross-provider tool-design guidance: *fix the return format; don't offer a choice the model won't use*.
+
+**Audience:** agent/tool builders; the "writing effective tools" practitioner audience (Anthropic
+tool-design blog); MCP server authors.
+
+**Dependencies:** #6 (now 60). To strengthen: an **economy-pressure prompt** ("use concise unless
+you need the ids") to test whether the choice is *usable* (vs merely un-used-by-default), and a
+**call-count-controlled** task so the token-efficiency ranking (A < C, D) becomes a clean number.
+
+**Status:** filed 2026-06-14 from the #6 sweep + Sonnet anchor. Confidence-adjacent to #6 (60).
+Caveat: success didn't discriminate (easy task) — the load-bearing evidence is the *behavioral*
+non-exploitation, not the (call-count-confounded) token totals.
+
+**Adjacencies:** the Anthropic "writing effective tools for agents" blog (Module 2 source); §3.3
+(tokens/KV-cache economy); the five reusable tool-use tiers + the per-arm A/B/C/D `make_tools`.
