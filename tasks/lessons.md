@@ -138,6 +138,13 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 - **A uniform-success cell is a non-discriminating DV, not a clean win.** #6's A/C/D all hit 100% because the task was easy → success couldn't separate the arms; only the (confounded) tokens differed. Note when the *intended discriminator* fails to discriminate, and fall back to the mechanism signal.
 - **Capability-anchor a behavioral claim, not just a magnitude.** The §0.8 Claude anchor here confirmed a *behavior* (Sonnet also defaults to `detailed`) across a ~7× capability gap — stronger than a single-model token number.
 
+### §0.24 — Predict→verify: pin the mechanism, pre-register an analytic prediction, then verify empirically — the residual is the calibration audit
+**Trigger:** *Without this, you either (a) trust an analytic cost/scaling model unverified and ship a number reality never meets, or (b) run a blind empirical sweep with no falsifiable target and rationalize whatever curve appears. #3's carry-vs-swap break-even ran (1) a smoke to pin the mechanism (DeepSeek caches tool defs; mutating them busts the suffix), (2) an analytic predictor pre-registering N\* ≈ 5,111 tool-tokens from that mechanism + known rates, (3) a real-API sweep that verified 6,461 — and the 26% miss was fully explained by the measured swap floor running +22% over the nominal target. With this, the prediction is falsifiable before the spend, and the prediction-vs-measurement gap localizes exactly which assumption was off (here: token calibration, not mechanism) instead of "close enough" hand-waving.*
+- **The residual is a feature, not noise.** A predict→verify gap points at the wrong assumption — decompose it (swap floor +22% ⇒ actual S/C/k overshoot the nominal target) before reporting the match.
+- **Measure in the currency you predicted in.** #3's first apparent "miss" (3,802 vs 5,111) was a nominal-vs-actual token mismatch — the filler wasn't token-calibrated. Recover the real currency (actual tool-tokens from turn-1 input) before comparing.
+- **Cross-condition cache contamination flattens the curve you're measuring.** Conditions sharing a filler prefix get cross-condition cache hits (DeepSeek TTL hours-days) — salt each condition + add a per-run nonce so every cell is cold. (Generalizes the Phase 1.0 Exercise-B cross-condition cache confound to the scripted setting.)
+- **Cheap + conclusive.** The whole #3 arc was ~$0.22 because the prediction told us exactly which N to bracket — pre-registration narrows the sweep.
+
 ---
 
 ## Phase-specific notes (chronological)
@@ -227,3 +234,34 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 
 **Throughline property progress**
 - **No surface advanced** (Stage 1 — expected). **Property 3 (re-evaluation) exercised in spirit:** §1.8/§3.8 re-evaluated against cross-family evidence, held-with-caveat rather than drifting. The substrate decision improves cross-provider grounding (feeds Property 4 later).
+
+### Phase 1.1 — Tools (Module 2) (closed 2026-06-14)
+
+**What worked**
+- **Rescue-progression (§0.22) as the phase's load-bearing instrument.** Two clean-but-inconclusive nulls (chain 55/55; binding to 953k) could have been mis-read as "no effect." Removing one escape per design (exact-match → recency → small-N → burial → discriminability) turned the chain of nulls into a *result*: the reason the four high-disc designs held IS the finding (#4 ⊆ §1.8). Cheaper + more conclusive than one big factorial.
+- **Predict→verify (§0.24, new) on #3.** Smoke-pinned mechanism → analytic pre-registration (N\* ≈ 5,111) → empirical verification (6,461), the residual fully decomposed. ~$0.22 total because the prediction told us which N to bracket. A reusable method, not a one-off.
+- **Pre-registered retraction criteria did real work.** #4(i)'s retraction *fired* and was honored (60→25) — anti-drift discipline working, not theater. Confidences moved only with the user, after the data.
+- **Leaning on the confound-free per-decision signal (§0.23).** #6's verdict rests on "the agent never chooses `concise`" (behavioral, cross-provider) — immune to the call-count token confound that flipped the aggregate ordering.
+- **Capability-anchoring behaviors, not just magnitudes (§0.8).** #6's "doesn't exploit the choice" confirmed on Sonnet + v4-pro across ~7× span; #3's existence+cost-model is mechanism-general.
+- **TDD harness held across five new tiers.** `make check` green (194 tests) the whole arc; stash-proofed scorer normalization; the isolated-tier pattern (per `run_binding`) kept the chain runner untouched.
+
+**What caused friction**
+- **Loop-guard assumed idempotent tools** — stateful `apply_adjustment` (identical args, different result) tripped the duplicate-signature guard at call 2, sending the recency tier to $0.003 no-ops. Fixed (`loop_guard=False` for that tier); logged (§0.22).
+- **Gradeable/luring tradeoff** blocked a clean agentic collapse *rate* — sharper cues become gradeable but kill the lure (0/48); vague cues lure but aren't cleanly gradeable. This is *why* #4(ii) parked; a gradeable agentic collapse needs §1.8's unique-answer needle ported (the RAG-vs-grep frame, later).
+- **Nominal-vs-actual token calibration + cross-condition cache contamination (#3)** — two clean re-runs needed before the verification was trustworthy (§0.24). The discipline (verify on real API; don't trust nominal) caught it.
+- **Stale session-start git snapshot** briefly mis-read the branch state (thought we were on `phase-1.0-ext-deepseek`); minor detour, resolved (branch was already correctly based on post-PR#2 main).
+
+**Rule changes proposed**
+- **`[ADD]`** §0.20 (presence ≠ rivalry), §0.21 (pilot validates the rig at full seed-count), §0.22 (rescue-progression; remove discriminability not length), §0.23 (lean on the confound-free per-decision DV), §0.24 (predict→verify; residual = calibration audit). All five **filed** in §0.
+- **`[MODIFY]`** CLAUDE.md Current State (through #3; arc done → close next). No structural rule change needed.
+- **`[DELETE]` none.** Considered whether §0.20 (reading a presence-only null) is now subsumed by §0.22 (rescue-progression) — **rejected**: distinct failure modes (reading a null vs. *inducing* the effect), the same way 1.0-ext kept §0.17/§0.18 separate. Nothing has yet proven to be decoration; the rule set is still young.
+
+**Synthesis cleanup proposed**
+- **§1.1** — carry-vs-swap break-even qualification added (conf 78; #3). **§1.8** — 78→80 (pillar B to ~1M) + agentic scope note (#4 provenance-blind). **#4(i)** — demoted 60→25 and **subsumed into §1.8** (stays in the graph with its retraction reason per Substrate Discipline #2; reframe recorded in `contribution-candidates.md`). **#6** — 45→62. Two new tool-design candidates filed. No merges.
+
+**Tool / permission allowlist additions**
+- None. (AskUserQuestion used for the two user-owned calls — #3 confidence + synthesis placement; no new permissions.)
+
+**Throughline property progress**
+- **No surface advanced** (Stage 1 — expected; first scheduled surface is Phase 2.1 / Property 3). **Property 3 exercised in spirit** (three positions *moved* with retraction criteria firing, not drift). **Property 4:** two contribution candidates + two reusable methodological assets (rescue-progression, predict→verify).
+- **FLAG (carried to the retro):** two consecutive concept-heavy phases (1.0-ext, 1.1) with **zero surface** progress. On-schedule for Stage 1, but **Phase 2.1 must ship a runnable surface slice** (Property 3 staleness scheduler) — the gate's first real test against sandbox-pull. Manual re-evaluation discipline ≠ the built surface.
