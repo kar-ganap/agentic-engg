@@ -26,13 +26,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_config as cfg  # noqa: E402
 
 from stance.rot.corpus import load_sentences  # noqa: E402
-from stance.secrets import anthropic_api_key, deepseek_api_key  # noqa: E402
 from stance.rot.runner import (  # noqa: E402
     accuracy_by_length,
     load_records,
     passband_knee,
     run_cell,
 )
+from stance.secrets import anthropic_api_key, deepseek_api_key  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO / "runs" / "phase-1.0"
@@ -64,12 +64,17 @@ def _summarize(cell: cfg.Cell, model: str, pool_tag: str = "") -> None:
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--item", help="only cells for this backlog item (e.g. 2)")
-    p.add_argument("--competition", help="only cells with this competition (neutral/localized/diffuse)")
-    p.add_argument("--similarity", help="only cells with this needle-question similarity (high/low)")
+    p.add_argument("--competition", help="filter cells: neutral/localized/diffuse")
+    p.add_argument("--similarity", help="filter cells by needle-question sim: high/low")
     p.add_argument("--go", action="store_true", help="actually run (else dry-run)")
     p.add_argument("--summarize", action="store_true", help="summarize existing runs and exit")
     p.add_argument("--max-seeds", type=int, default=None, help="use only the first N seeds")
     p.add_argument("--max-len", type=int, default=None, help="cap target length (tokens)")
+    p.add_argument("--lengths", help="comma-separated target lengths, overriding cfg.LENGTHS")
+    p.add_argument(
+        "--max-input-tokens", type=int, default=190_000,
+        help="skip runs whose counted input exceeds this; raise it for >190k length sweeps",
+    )
     p.add_argument("--model", default=cfg.MODEL_PRIMARY)
     p.add_argument(
         "--provider", choices=["anthropic", "deepseek"], default="anthropic",
@@ -104,7 +109,8 @@ def main() -> None:
         and (args.similarity is None or c.similarity == args.similarity)
     ]
     seeds = list(cfg.SEEDS[: args.max_seeds]) if args.max_seeds else list(cfg.SEEDS)
-    lengths = [n for n in cfg.LENGTHS if args.max_len is None or n <= args.max_len]
+    src_lengths = [int(x) for x in args.lengths.split(",")] if args.lengths else list(cfg.LENGTHS)
+    lengths = [n for n in src_lengths if args.max_len is None or n <= args.max_len]
 
     if args.summarize:
         for c in cells:
@@ -174,6 +180,7 @@ def main() -> None:
             complete_fn=complete,
             count_fn=count,
             out_path=path,
+            max_input_tokens=args.max_input_tokens,
             filler_sentences=filler if c.structure == "clean_essay" else None,
             competitor_pool=pool,
         )
