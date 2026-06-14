@@ -60,6 +60,16 @@ class Order:
     id: str
     account_id: str
     days_ago: int
+    # refund tier (#4-v2): a hidden `base_price` + negotiated `discount` → the in-flight
+    # refund (apply_adjustment computes base×discount; no tool exposes base directly — the
+    # bypass guard); `description` is the semantic referent the consume cue names.
+    base_price: float | None = None
+    discount: float | None = None
+    description: str | None = None
+    # recency tier (#4-v2, proactive interference): N successive running totals (the agent
+    # generates them via apply_adjustment), each with a `reason`; the needle is the LAST.
+    running_totals: tuple[str, ...] | None = None
+    reasons: tuple[str, ...] | None = None
 
     @property
     def eligible(self) -> bool:
@@ -109,6 +119,24 @@ def gen_order(
         account_id=account_id,
         days_ago=days_ago if days_ago is not None else rng.randint(1, 90),
     )
+
+
+_DISCOUNTS = (0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50)
+
+
+def gen_amount(
+    rng: random.Random, taken_amounts: Collection[str], *, lo: float = 20.0, hi: float = 500.0
+) -> tuple[float, float, str]:
+    """A `(base_price, discount, amount)` whose 2dp `amount` (= base × discount) is **not** in
+    `taken_amounts` — distinct refunds make a mis-bind unambiguous (wrong-routing, not a
+    transcription slip). Mirrors `gen_id`'s collision discipline; `amount` is canonical "DD.DD"
+    so it matches the scorer's normalized needle/pool. apply_adjustment recomputes base×discount."""
+    while True:
+        base = round(rng.uniform(lo, hi), 2)
+        discount = rng.choice(_DISCOUNTS)
+        amount = f"{round(base * discount, 2):.2f}"
+        if amount not in taken_amounts:
+            return base, discount, amount
 
 
 def gen_ticket(

@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from stance.tools import Tool
-from stance.tooluse.domain import World
+from stance.tooluse.domain import Order, World
 
 _FORMATS = {"A": "detailed", "B": "concise", "D": "handle"}
 
@@ -287,6 +287,222 @@ def make_selection_tools(
     for name in siblings:
         tools.append(Tool(name, f"Search {name.replace('_', ' ')}.", schema, sibling_fn))
     return tuple(tools)
+
+
+# --- refund tier (#4-v2): self-generated semantic role-binding interference ---
+# `return_shape` is the #4ii fix lever (how apply_adjustment re-states each binding);
+# `doc_quality` is the competing lever (tool-description guidance) for the ordering test.
+_REFUND_DOCS = {
+    "terse": {
+        "apply_adjustment": "Compute the refund for an order.",
+        "list_adjustments": "List every refund computed so far.",
+        "issue_refund": "Issue a refund for an order.",
+    },
+    "verbose": {
+        "apply_adjustment": (
+            "Compute the negotiated refund for ONE order (base price × the agreed discount). "
+            "Call once per order; the returned amount is authoritative — record which order it "
+            "belongs to, since amounts are easy to confuse across similar items."
+        ),
+        "list_adjustments": (
+            "Re-list every refund computed so far, each with its item, so you can re-confirm "
+            "the correct amount before issuing rather than relying on memory."
+        ),
+        "issue_refund": (
+            "Issue a refund for an order. Use the EXACT amount computed for THAT order — "
+            "double-check the item↔amount binding; a wrong amount refunds the wrong sum."
+        ),
+    },
+}
+_RETURN_SHAPES = ("flat", "tagged", "structured")
+
+
+def make_refund_tools(
+    world: World,
+    *,
+    return_shape: str = "flat",
+    doc_quality: str = "terse",
+    terminal_style: str = "crisp",
+) -> tuple[Tool, ...]:
+    """Refund-tier toolset. The agent computes a distinct refund per item via
+    `apply_adjustment` (the in-flight, self-generated value — no tool exposes the base
+    price, the bypass guard), then `issue_refund(amount=…)` routes one to a referent.
+    `return_shape` controls how each computed binding renders (flat = amount only, no item
+    tag → max interference; tagged/structured re-state the item↔amount binding → the #4ii
+    fix). `list_adjustments` is the measured re-fetch path (re-derives all pairs; removes
+    memory load but NOT the semantic discrimination among confusable descriptions)."""
+    docs = _REFUND_DOCS.get(doc_quality)
+    if docs is None:
+        raise ValueError(f"unknown doc_quality: {doc_quality!r}")
+    if return_shape not in _RETURN_SHAPES:
+        raise ValueError(f"unknown return_shape: {return_shape!r}")
+
+    def err(error_type: str, details: str) -> ToolResult:
+        return ToolResult(
+            content=render_error(error_type, details, terminal_style),
+            is_error=True,
+            error_type=error_type,
+        )
+
+    def amount_of(order: Order) -> str:
+        assert order.base_price is not None and order.discount is not None
+        return f"{round(order.base_price * order.discount, 2):.2f}"
+
+    def render_one(order: Order, amount: str) -> str:
+        if return_shape == "flat":
+            return f"Refund amount: ${amount}"  # no item tag — binding only in the call arg
+        if return_shape == "tagged":
+            return f"{order.description} → refund ${amount}"
+        return f'{{"item": "{order.description}", "amount": {amount}}}'  # structured
+
+    def result(content: str, ids: list[str]) -> ToolResult:
+        return ToolResult(content=content, extracted_ids=ids, size_tokens=_est_tokens(content))
+
+    def apply_adjustment(order_id: str) -> ToolResult:
+        order = world.orders.get(order_id)
+        if order is None or order.base_price is None:
+            return err("not_found", f"order {order_id}")
+        amount = amount_of(order)
+        return result(render_one(order, amount), [amount])  # surface the amount (the needle)
+
+    def list_adjustments() -> ToolResult:
+        items = [o for o in world.orders.values() if o.base_price is not None]
+        lines = [f"{o.description} → refund ${amount_of(o)}" for o in items]
+        body = "Computed refunds:\n" + "\n".join(lines) if lines else "(no refunds computed)"
+        return result(body, [amount_of(o) for o in items])  # all pairs (re-fetch path)
+
+    def issue_refund(order_id: str, amount: float) -> ToolResult:
+        if world.orders.get(order_id) is None:
+            return err("not_found", f"order {order_id}")
+        content = f"Refund of ${amount} issued for order {order_id}."
+        return result(content, [])
+
+    def schema(props: dict[str, Any], required: list[str]) -> dict[str, Any]:
+        return {"type": "object", "properties": props, "required": required}
+
+    return (
+        Tool("apply_adjustment", docs["apply_adjustment"],
+             schema({"order_id": {"type": "string"}}, ["order_id"]), apply_adjustment),
+        Tool("list_adjustments", docs["list_adjustments"], schema({}, []), list_adjustments),
+        Tool("issue_refund", docs["issue_refund"],
+             schema({"order_id": {"type": "string"}, "amount": {"type": "number"}},
+                    ["order_id", "amount"]), issue_refund),
+    )
+
+
+# --- rolebind tier (#4-v2, the decisive two-phase large-N test) ---------------------------
+def make_rolebind_tools(
+    world: World, *, cue: str, terminal_style: str = "crisp"
+) -> tuple[Tool, ...]:
+    """Two-phase role-binding toolset. `apply_adjustment(order_id)` computes one refund (flat —
+    the item↔amount binding lives only in the call); `list_adjustments` is the measured re-fetch
+    (all pairs; at high overlap the cue→item match is still hard). `get_refund_request` is GATED:
+    it reveals the consume `cue` only after EVERY order has been adjusted — so the agent can't
+    shortcut to the target, and the target was computed mid-sequence (no recency rescue)."""
+    adjusted: set[str] = set()
+    refund_orders = {oid for oid, o in world.orders.items() if o.base_price is not None}
+
+    def err(error_type: str, details: str) -> ToolResult:
+        return ToolResult(content=render_error(error_type, details, terminal_style),
+                          is_error=True, error_type=error_type)
+
+    def amount_of(order: Order) -> str:
+        assert order.base_price is not None and order.discount is not None
+        return f"{round(order.base_price * order.discount, 2):.2f}"
+
+    def apply_adjustment(order_id: str) -> ToolResult:
+        order = world.orders.get(order_id)
+        if order is None or order.base_price is None:
+            return err("not_found", f"order {order_id}")
+        adjusted.add(order_id)
+        amount = amount_of(order)
+        content = f"Computed refund: ${amount}."  # flat — binding only in the call args
+        return ToolResult(content=content, extracted_ids=[amount], size_tokens=_est_tokens(content))
+
+    def list_adjustments() -> ToolResult:
+        items = [o for o in world.orders.values() if o.base_price is not None]
+        lines = [f"{o.description} → refund ${amount_of(o)}" for o in items]
+        body = "Computed refunds:\n" + "\n".join(lines) if lines else "(none computed)"
+        return ToolResult(content=body, extracted_ids=[amount_of(o) for o in items],
+                          size_tokens=_est_tokens(body))
+
+    def get_refund_request() -> ToolResult:
+        if not refund_orders <= adjusted:  # GATE: all must be computed first
+            done, total = len(adjusted & refund_orders), len(refund_orders)
+            return ToolResult(content=f"Compute the refund for all items first ({done}/{total} "
+                              f"done).", is_error=True, error_type="empty")
+        content = f"Issue the refund for: {cue}."
+        return ToolResult(content=content, size_tokens=_est_tokens(content))
+
+    def issue_refund(order_id: str, amount: float) -> ToolResult:
+        if world.orders.get(order_id) is None:
+            return err("not_found", f"order {order_id}")
+        content = f"Refund of ${amount} issued for order {order_id}."
+        return ToolResult(content=content, size_tokens=_est_tokens(content))
+
+    def schema(props: dict[str, Any], required: list[str]) -> dict[str, Any]:
+        return {"type": "object", "properties": props, "required": required}
+
+    return (
+        Tool("apply_adjustment", "Compute the refund for one order.",
+             schema({"order_id": {"type": "string"}}, ["order_id"]), apply_adjustment),
+        Tool("list_adjustments", "List every refund computed so far, with its item.",
+             schema({}, []), list_adjustments),
+        Tool("get_refund_request", "Reveal which single refund to issue (only after all are "
+             "computed).", schema({}, []), get_refund_request),
+        Tool("issue_refund", "Issue a refund for an order.",
+             schema({"order_id": {"type": "string"}, "amount": {"type": "number"}},
+                    ["order_id", "amount"]), issue_refund),
+    )
+
+
+# --- recency tier (#4-v2, proactive interference) -----------------------------------------
+def make_recency_tools(world: World, *, terminal_style: str = "crisp") -> tuple[Tool, ...]:
+    """Recency-tier toolset. `apply_adjustment(order_id)` is STATEFUL — each call advances a
+    per-order cursor and returns the next running total (the self-generated value the agent must
+    later recall). There is deliberately NO current-total query (the bypass guard): the agent
+    tracks the latest from its own returns. `issue_refund(order_id, amount)` is the write."""
+    cursor: dict[str, int] = {}
+
+    def err(error_type: str, details: str) -> ToolResult:
+        return ToolResult(
+            content=render_error(error_type, details, terminal_style),
+            is_error=True, error_type=error_type,
+        )
+
+    def apply_adjustment(order_id: str) -> ToolResult:
+        order = world.orders.get(order_id)
+        if order is None or order.running_totals is None:
+            return err("not_found", f"order {order_id}")
+        totals = order.running_totals
+        reasons = order.reasons or ()
+        k = cursor.get(order_id, 0)
+        if k >= len(totals):
+            return ToolResult(content="All adjustments already applied; no further changes.",
+                              size_tokens=4)  # no total re-surfaced (no late shortcut)
+        cursor[order_id] = k + 1
+        reason = reasons[k] if k < len(reasons) else "adjustment"
+        total = totals[k]
+        content = f"Adjustment {k + 1} of {len(totals)} ({reason}); running total ${total}."
+        return ToolResult(content=content, extracted_ids=[total], size_tokens=_est_tokens(content))
+
+    def issue_refund(order_id: str, amount: float) -> ToolResult:
+        if world.orders.get(order_id) is None:
+            return err("not_found", f"order {order_id}")
+        content = f"Refund of ${amount} issued for order {order_id}."
+        return ToolResult(content=content, size_tokens=_est_tokens(content))
+
+    def schema(props: dict[str, Any], required: list[str]) -> dict[str, Any]:
+        return {"type": "object", "properties": props, "required": required}
+
+    return (
+        Tool("apply_adjustment", "Apply the next negotiated adjustment to an order; returns the "
+             "new running total.", schema({"order_id": {"type": "string"}}, ["order_id"]),
+             apply_adjustment),
+        Tool("issue_refund", "Issue a refund for an order.",
+             schema({"order_id": {"type": "string"}, "amount": {"type": "number"}},
+                    ["order_id", "amount"]), issue_refund),
+    )
 
 
 def dispatch(

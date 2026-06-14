@@ -75,37 +75,85 @@ def _fill(usage: dict[str, int] | None) -> int:
     )
 
 
+def _as_number(value: Any) -> float | None:
+    """Parse a numeric-looking value (52, 52.0, '52.00', '$1,240.50') to float, else None."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip().lstrip("$").replace(",", ""))
+        except ValueError:
+            return None
+    return None
+
+
+def _norm_value(value: Any) -> str:
+    """Canonical comparison key. Numeric-looking values collapse to a 2dp form so the
+    model's formatting (52 / 52.0 / '$52.00') never causes a false mis-bind; else str()."""
+    n = _as_number(value)
+    return f"{round(n, 2):.2f}" if n is not None else str(value)
+
+
+def _extract_type(value: str) -> str:
+    """Type tag for restricting the competitor pool. Ids → prefix (`A-1234` → `A`);
+    numeric amounts → `num` (numeric competitors share a type); else the value itself."""
+    if "-" in value:
+        return value.split("-")[0]
+    return "num" if _as_number(value) is not None else value
+
+
 def _matches(e: CallEvent, w: Write) -> bool:
     """A successful call to `w.action` whose args ⊇ `w.args` (subset; ignore extra
-    args like `body`/`response_format`; only count non-error calls)."""
+    args like `body`/`response_format`; only count non-error calls). Values are
+    normalized so a numeric amount matches regardless of the model's formatting."""
     if e.tool_called != w.action or e.is_error:
         return False
     args = e.arguments or {}
-    return all(args.get(k) == v for k, v in w.args.items())
+    return all(_norm_value(args.get(k)) == _norm_value(v) for k, v in w.args.items())
 
 
-def _critical(events: list[CallEvent], edge: DependencyEdge) -> tuple[str, bool, bool, int]:
+def _critical(
+    events: list[CallEvent], edge: DependencyEdge, known_pool: list[str]
+) -> tuple[str, bool | None, bool, int]:
     """Classify the #4 critical-step outcome. Returns
-    (outcome, handle_available, handle_used, competitors_surfaced)."""
+    (outcome, handle_available, handle_used, competitors_surfaced). `producer` may be
+    None (passive arm — needle not agent-fetched); `known_pool` is the task's declared
+    rivals (so the pool works even when competitors aren't surfaced via tool returns)."""
     calls = [e for e in events if e.is_tool_call]
-    producers = [e for e in calls if e.tool_called == edge.producer]
-    consumers = [e for e in calls if e.tool_called == edge.consumer]
-    handle_available = any(edge.needle_id in (e.extracted_ids or []) for e in producers)
-    # pool = ids the agent SAW, minus the needle, restricted to the needle's type (true competition)
-    prefix = edge.needle_id.split("-")[0]
-    pool = {
-        cid
+    needle_key = _norm_value(edge.needle_id)
+    ptype = _extract_type(edge.needle_id)
+
+    def _surfaces_needle(e: CallEvent) -> bool:
+        return needle_key in {_norm_value(x) for x in (e.extracted_ids or [])}
+
+    producers = [e for e in calls if edge.producer is not None and e.tool_called == edge.producer]
+    handle_available: bool | None = (
+        None if edge.producer is None else any(_surfaces_needle(e) for e in producers)
+    )
+    # pool = declared rivals ∪ same-type ids the agent SAW (minus the needle), all normalized
+    pool = {_norm_value(c) for c in known_pool if _norm_value(c) != needle_key}
+    pool |= {
+        _norm_value(cid)
         for e in calls
         for cid in (e.extracted_ids or [])
-        if cid != edge.needle_id and cid.split("-")[0] == prefix
+        if _norm_value(cid) != needle_key and _extract_type(cid) == ptype
     }
+    consumers = [e for e in calls if e.tool_called == edge.consumer]
     if not consumers:
         return "error", handle_available, False, len(pool)
     consume = consumers[0]
-    consumed = (consume.arguments or {}).get(edge.needle_arg)
-    if consumed == edge.needle_id:
-        re_fetched = sum(1 for e in producers if e.turn_index < consume.turn_index) >= 2
-        return ("re-fetch" if re_fetched else "correct-use"), handle_available, True, len(pool)
+    raw = (consume.arguments or {}).get(edge.needle_arg)
+    consumed = _norm_value(raw) if raw is not None else None
+    if consumed == needle_key:
+        # re-fetch = the needle was surfaced 2+ times before use (re-derived, not recalled).
+        # Counts ANY needle-surfacing call (get_order, list_adjustments, …), so N per-item
+        # producer calls that surface *different* values are NOT misread as a re-fetch.
+        surfaced = sum(
+            1 for e in calls if _surfaces_needle(e) and e.turn_index < consume.turn_index
+        )
+        return ("re-fetch" if surfaced >= 2 else "correct-use"), handle_available, True, len(pool)
     if consumed in pool:
         return "mis-bind", handle_available, False, len(pool)
     return "fabricate", handle_available, False, len(pool)
@@ -124,10 +172,11 @@ def _cascade(events: list[CallEvent], task: TaskInstance) -> bool:
         return False
     consume = consumers[0]
     consumed = (consume.arguments or {}).get(edge.needle_arg)
-    if consumed is None or consumed == edge.needle_id:
+    if consumed is None or _norm_value(consumed) == _norm_value(edge.needle_id):
         return False
+    ck = _norm_value(consumed)
     return any(
-        consumed in (e.arguments or {}).values()
+        ck in {_norm_value(v) for v in (e.arguments or {}).values()}
         for e in calls
         if e.turn_index > consume.turn_index
     )
@@ -157,7 +206,9 @@ def score(events: list[CallEvent], run: RunRecord, task: TaskInstance) -> TaskSu
     fill_at_use: int | None = None
     edge = task.dependency_edge
     if edge is not None:
-        outcome, handle_available, handle_used, competitors = _critical(events, edge)
+        outcome, handle_available, handle_used, competitors = _critical(
+            events, edge, task.competitor_pool
+        )
         consumers = [e for e in calls if e.tool_called == edge.consumer]
         if consumers:
             fill_at_use = _fill(consumers[0].usage)

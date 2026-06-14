@@ -10,7 +10,7 @@ from typing import Any
 
 from stance.tooluse.events import CallEvent, EventLogger, RunRecord
 from stance.tooluse.score import read_runs, score
-from stance.tooluse.tasks.base import TaskInstance, Write
+from stance.tooluse.tasks.base import DependencyEdge, TaskInstance, Write
 from stance.tooluse.tasks.chain import build_chain_task
 
 
@@ -172,6 +172,103 @@ def test_cost_from_usage() -> None:
     ]
     s = score(events, _run(), task)
     assert abs(s.total_cost_usd - 0.14) < 0.01  # v4-flash input $0.14/MTok × 1M
+
+
+def _passive_task() -> TaskInstance:
+    # passive binding arm: no producer, rivals declared (not surfaced via tool returns)
+    return TaskInstance(
+        prompt="x", seed=0, ivs={"tier": "binding", "regime": "passive"},
+        expected_writes=[Write("send_message", {"account_id": "A-1"}, 1)],
+        dependency_edge=DependencyEdge(
+            consumer="send_message", needle_id="A-1", needle_arg="account_id", producer=None,
+        ),
+        competitor_pool=["A-2", "A-3"],
+    )
+
+
+def test_passive_mis_bind_uses_declared_pool() -> None:
+    # the agent sends to a rival from the dumped directory — mis-bind, even with no
+    # extracted_ids and no producer call (handle_available is undefined for passive)
+    task = _passive_task()
+    s = score([_evt(0, "send_message", {"account_id": "A-2"})], _run(), task)
+    assert s.critical_outcome == "mis-bind" and not s.success
+    assert s.handle_available is None and s.competitors_surfaced == 2
+
+
+def test_passive_correct_use_no_producer() -> None:
+    task = _passive_task()
+    s = score([_evt(0, "send_message", {"account_id": "A-1"})], _run(), task)
+    assert s.critical_outcome == "correct-use" and s.success
+    assert s.handle_available is None  # nothing was fetched; availability is undefined
+
+
+def _refund_task() -> TaskInstance:
+    # role-binding refund: NUMERIC amount needle, producer = apply_adjustment (per item)
+    return TaskInstance(
+        prompt="x", seed=0, ivs={"tier": "refund"},
+        expected_writes=[Write("issue_refund", {"amount": "52.00"}, 1)],
+        dependency_edge=DependencyEdge(
+            consumer="issue_refund", needle_id="52.00",
+            needle_arg="amount", producer="apply_adjustment",
+        ),
+        competitor_pool=["48.00", "60.00"],
+    )
+
+
+def test_refund_correct_use_numeric_variants() -> None:
+    # the model may emit the amount many ways; all must normalize to the needle
+    task = _refund_task()
+    for amt in ["52.00", "52.0", "52", 52, 52.0, "$52.00"]:
+        prod = _evt(0, "apply_adjustment", {"order_id": "O-1"}, extracted=["52.00"])
+        s = score([prod, _evt(1, "issue_refund", {"amount": amt})], _run(), task)
+        assert s.critical_outcome == "correct-use" and s.success, repr(amt)
+        assert s.handle_available is True  # apply_adjustment surfaced the needle amount
+
+
+def test_refund_mis_bind_numeric_variants() -> None:
+    # routing a *competitor* amount (any formatting) is a mis-bind, not a fabricate
+    task = _refund_task()
+    for amt in ["48.00", "48.0", 48, "$48.00", "60.00", 60]:
+        s = score([_evt(1, "issue_refund", {"amount": amt})], _run(), task)
+        assert s.critical_outcome == "mis-bind" and not s.success, repr(amt)
+
+
+def test_refund_fabricate_off_pool() -> None:
+    s = score([_evt(1, "issue_refund", {"amount": "99.00"})], _run(), _refund_task())
+    assert s.critical_outcome == "fabricate" and not s.success
+
+
+def test_refund_n_items_not_misread_as_refetch() -> None:
+    # the agent fetches all N items (apply_adjustment x N) then issues from memory:
+    # only the TARGET's call surfaces the needle, so this is correct-use, NOT re-fetch
+    task = _refund_task()
+    events = [
+        _evt(0, "apply_adjustment", {"order_id": "O-1"}, extracted=["52.00"]),  # target
+        _evt(1, "apply_adjustment", {"order_id": "O-2"}, extracted=["48.00"]),  # competitor
+        _evt(2, "apply_adjustment", {"order_id": "O-3"}, extracted=["60.00"]),  # competitor
+        _evt(3, "issue_refund", {"amount": "52.00"}),
+    ]
+    s = score(events, _run(), task)
+    assert s.critical_outcome == "correct-use", s.critical_outcome  # NOT re-fetch
+
+
+def test_refund_relist_is_refetch() -> None:
+    # re-deriving the needle (a 2nd needle-surfacing call) before issuing = re-fetch
+    task = _refund_task()
+    events = [
+        _evt(0, "apply_adjustment", {"order_id": "O-1"}, extracted=["52.00"]),
+        _evt(1, "list_adjustments", {}, extracted=["52.00", "48.00", "60.00"]),  # re-derive
+        _evt(2, "issue_refund", {"amount": "52.00"}),
+    ]
+    s = score(events, _run(), task)
+    assert s.critical_outcome == "re-fetch" and s.success
+
+
+def test_refund_write_predicate_numeric_normalization() -> None:
+    # write-boundary success even if the model emits 52 / $52.00 for a "52.00" needle
+    task = _refund_task()
+    for amt in ["52.00", 52, 52.0, "$52.00"]:
+        assert score([_evt(0, "issue_refund", {"amount": amt})], _run(), task).success, repr(amt)
 
 
 def _selection_task() -> TaskInstance:

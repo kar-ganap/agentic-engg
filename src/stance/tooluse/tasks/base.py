@@ -26,12 +26,13 @@ class Write:
 @dataclass(frozen=True)
 class DependencyEdge:
     """The needle's produce→use edge. `needle_id` is the concrete per-seed value;
-    `needle_arg` is the consumer arg that must equal it (e.g. send_message.account_id)."""
+    `needle_arg` is the consumer arg that must equal it (e.g. send_message.account_id).
+    `producer` is None when the needle is NOT agent-fetched (the passive A/B arm)."""
 
-    producer: str
     consumer: str
     needle_id: str
     needle_arg: str
+    producer: str | None = None
 
 
 @dataclass
@@ -45,4 +46,5 @@ class TaskInstance:
     seed: int
     dependency_edge: DependencyEdge | None = None
     expected_tool: str | None = None  # selection tier only
+    competitor_pool: list[str] = field(default_factory=list)  # declared rivals (scorer pool)
     notes: dict[str, Any] = field(default_factory=dict)

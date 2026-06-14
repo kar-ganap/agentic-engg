@@ -8,11 +8,25 @@ actually surface the needle + competitors so the loop can run it.
 
 from __future__ import annotations
 
+import random
+
+from stance.tooluse.domain import gen_amount
+from stance.tooluse.tasks.binding import build_binding_task
 from stance.tooluse.tasks.chain import build_chain_task
+from stance.tooluse.tasks.diffuse import build_diffuse_task
 from stance.tooluse.tasks.format import build_format_task
 from stance.tooluse.tasks.loopguard import build_loopguard_task
+from stance.tooluse.tasks.recency import build_recency_task
+from stance.tooluse.tasks.refund import (
+    SCENARIOS,
+    Scenario,
+    build_refund_task,
+    gen_items,
+    shared_stems,
+)
+from stance.tooluse.tasks.rolebind import _POOLS, build_rolebind_task
 from stance.tooluse.tasks.selection import build_selection_task
-from stance.tooluse.tools import dispatch, make_selection_tools, make_tools
+from stance.tooluse.tools import dispatch, make_refund_tools, make_selection_tools, make_tools
 
 
 def test_needle_is_produced_by_get_order() -> None:
@@ -176,3 +190,218 @@ def test_ambiguous_search_renders_crisp_vs_soft() -> None:
     assert "do not repeat" in rc.content.lower()  # crisp = actionable + anti-repeat
     assert "more results may be available" in rs.content.lower()  # soft = vague (baits a loop)
     assert rc.content != rs.content
+
+
+# --- binding A/B (active vs passive) ---------------------------------------
+def test_binding_active_fetches_needle_with_rivals_in_pool() -> None:
+    world, task = build_binding_task(seed=1, regime="active", n_rivals=10, fill_tokens=5000)
+    edge = task.dependency_edge
+    assert edge is not None and edge.producer == "get_order"  # active = agent-fetched
+    assert edge.needle_id in world.accounts and len(world.orders) == 1  # fetchable
+    assert len(task.competitor_pool) == 10 and edge.needle_id not in task.competitor_pool
+    assert all(a in world.accounts for a in task.competitor_pool)  # rivals exist → valid sends
+    assert f"account {edge.needle_id}" not in task.prompt  # needle NOT dumped (must fetch)
+
+
+def test_binding_passive_dumps_needle_no_producer() -> None:
+    world, task = build_binding_task(seed=1, regime="passive", n_rivals=10, fill_tokens=5000)
+    edge = task.dependency_edge
+    assert edge is not None and edge.producer is None  # passive = not fetched
+    assert world.orders == {}  # no get_order path
+    assert f"account {edge.needle_id}" in task.prompt  # needle IS in the dumped directory
+    assert len(task.competitor_pool) == 10  # same rival burden as active
+
+
+def test_binding_same_needle_across_regimes_only_access_differs() -> None:
+    # same seed → same needle/rivals; the ONLY difference is how the needle is reached
+    _, ta = build_binding_task(seed=3, regime="active", n_rivals=8, fill_tokens=3000)
+    _, tp = build_binding_task(seed=3, regime="passive", n_rivals=8, fill_tokens=3000)
+    assert ta.dependency_edge.needle_id == tp.dependency_edge.needle_id  # type: ignore[union-attr]
+    assert sorted(ta.competitor_pool) == sorted(tp.competitor_pool)
+
+
+def test_binding_fill_scales_directory() -> None:
+    _, small = build_binding_task(seed=1, regime="passive", n_rivals=5, fill_tokens=2000)
+    _, big = build_binding_task(seed=1, regime="passive", n_rivals=5, fill_tokens=20000)
+    assert len(big.prompt) > 4 * len(small.prompt)  # filler scales the dumped directory
+
+
+# --- refund tier (#4-v2): self-generated semantic role-binding -------------
+def test_gen_amount_distinct_and_consistent() -> None:
+    rng = random.Random(0)
+    taken: set[str] = set()
+    amts = []
+    for _ in range(20):
+        base, disc, amt = gen_amount(rng, taken)
+        taken.add(amt)
+        amts.append(amt)
+        assert abs(round(base * disc, 2) - float(amt)) < 1e-9  # amount == base × discount
+    assert len(set(amts)) == 20  # collision-filtered → all distinct
+
+
+def test_shared_stems_catches_inflections_not_semantics() -> None:
+    assert shared_stems("trail-running shoes", "off-road trails")  # trail/trails
+    assert shared_stems("racing flats", "race day")  # race/racing
+    assert shared_stems("track spikes", "running track")  # track
+    # semantically related but lexically distinct → NOT flagged (the property we exploit)
+    assert not shared_stems("trail-running shoes", "muddy mountain switchbacks")
+    assert not shared_stems("espresso machine", "the gadget for pulling morning shots")
+
+
+def test_scenarios_are_stem_valid() -> None:
+    # the lexical contract (so the cue-leak can't silently return): cue lex-FAR from target;
+    # semantic pools lex-far from cue; lures lex-NEAR cue but lex-far target.
+    for sc in SCENARIOS:
+        assert not shared_stems(sc.cue, sc.target), sc.target  # no cue→target leak
+        for kind in ("high", "mid", "low"):
+            for d in getattr(sc, kind):
+                assert not shared_stems(sc.cue, d), (sc.target, kind, d)  # not an accidental lure
+        for d in sc.lure:
+            assert shared_stems(sc.cue, d), (sc.target, d)  # a lure shares a cue stem
+            assert not shared_stems(sc.target, d), (sc.target, d)  # but not a target stem
+        alld = [sc.target, *sc.high, *sc.mid, *sc.low, *sc.lure]
+        assert len(alld) == len(set(alld)), sc.target  # all distinct
+
+
+def test_gen_items_lure_and_mixed() -> None:
+    items, _cue, ti, lures = gen_items(random.Random(1), kind="lure", n_items=5)
+    assert len(items) == 5 and len(lures) == 4  # all competitors are lures
+    assert items[ti] not in lures  # the target itself is not a lure
+    _, _, _, lures2 = gen_items(random.Random(1), kind="mixed", n_items=5)
+    assert 0 < len(lures2) < 4  # mixed = some lures + some semantic neighbors
+
+
+def _scenario_for(target_desc: str) -> Scenario:
+    return next(s for s in SCENARIOS if s.target == target_desc)
+
+
+def test_refund_amounts_distinct_and_pool_excludes_needle() -> None:
+    _, task = build_refund_task(seed=1, kind="high", n_items=5, fill_tokens=0)
+    edge = task.dependency_edge
+    assert edge is not None and edge.producer == "apply_adjustment" and edge.needle_arg == "amount"
+    pool = task.competitor_pool
+    assert len(pool) == 4 and edge.needle_id not in pool  # N-1 rivals, needle excluded
+    assert len({edge.needle_id, *pool}) == 5  # all N amounts distinct → mis-bind unambiguous
+
+
+def test_refund_bypass_guard_amounts_not_in_prompt() -> None:
+    # the amount is obtainable ONLY via apply_adjustment (base price is hidden) — no prompt leak.
+    world, task = build_refund_task(seed=2, kind="high", n_items=5, fill_tokens=0)
+    for amount in [task.dependency_edge.needle_id, *task.competitor_pool]:  # type: ignore[union-attr]
+        assert amount not in task.prompt
+    tools = make_refund_tools(world)
+    r = dispatch(tools, "apply_adjustment", {"order_id": task.notes["target_order"]})
+    assert task.dependency_edge.needle_id in r.extracted_ids  # type: ignore[union-attr]
+
+
+def test_refund_cue_is_lexically_far_from_target() -> None:
+    _, task = build_refund_task(seed=3, kind="high", n_items=5, fill_tokens=0)
+    cue, target = task.notes["cue"], task.notes["target_description"]
+    assert cue in task.prompt and target in task.prompt
+    assert not shared_stems(cue, target)  # forces SEMANTIC, not lexical, cue→item matching
+
+
+def test_refund_kind_draws_from_scenario_pool() -> None:
+    for kind in ("low", "mid", "high", "lure"):
+        _, task = build_refund_task(seed=4, kind=kind, n_items=6, fill_tokens=0)
+        sc = _scenario_for(task.notes["target_description"])
+        comps = set(task.notes["bindings"].keys()) - {task.notes["target_description"]}
+        assert comps <= set(getattr(sc, kind)) and len(comps) == 5  # from the right pool
+
+
+def test_refund_lure_amounts_recorded_for_capture_analysis() -> None:
+    _, task = build_refund_task(seed=5, kind="lure", n_items=5, fill_tokens=0)
+    assert len(task.notes["lure_amounts"]) == 4  # mis-binds to these = lexical capture
+    assert task.dependency_edge.needle_id not in task.notes["lure_amounts"]  # type: ignore[union-attr]
+
+
+def test_refund_deterministic_and_fill_scales() -> None:
+    _, a = build_refund_task(seed=7, kind="mid", n_items=4, fill_tokens=0)
+    _, b = build_refund_task(seed=7, kind="mid", n_items=4, fill_tokens=0)
+    assert a.prompt == b.prompt and a.dependency_edge.needle_id == b.dependency_edge.needle_id  # type: ignore[union-attr]
+    _, big = build_refund_task(seed=7, kind="mid", n_items=4, fill_tokens=8000)
+    assert len(big.prompt) > 4 * len(a.prompt)  # neutral chatter scales the trajectory
+
+
+# --- recency tier (#4-v2): proactive interference -------------------------
+def test_recency_needle_is_last_total_pool_is_stale() -> None:
+    _, task = build_recency_task(seed=1, n_updates=8, fill_tokens=0, semantic_similar=False)
+    edge = task.dependency_edge
+    assert edge is not None and edge.producer == "apply_adjustment" and edge.needle_arg == "amount"
+    totals = task.notes["running_totals"]
+    assert len(totals) == 8 and edge.needle_id == totals[-1]  # needle = the FINAL total
+    assert task.competitor_pool == totals[:-1]  # stale totals = the interference
+    assert len(set(totals)) == 8  # all distinct → unambiguous mis-bind
+
+
+def test_recency_n_scales_for_free() -> None:
+    for n in (5, 20, 40):
+        _, task = build_recency_task(seed=2, n_updates=n, fill_tokens=0, semantic_similar=False)
+        assert len(task.notes["running_totals"]) == n  # N is a free knob (no curation)
+
+
+def test_recency_semantic_modifier_picks_reason_pool() -> None:
+    _, sim = build_recency_task(seed=3, n_updates=5, fill_tokens=0, semantic_similar=True)
+    _, dis = build_recency_task(seed=3, n_updates=5, fill_tokens=0, semantic_similar=False)
+    assert all("discount" in r for r in sim.notes["reasons"])  # similar = all discounts (blurry)
+    assert not all("discount" in r for r in dis.notes["reasons"])  # distinct = varied anchors
+
+
+def test_recency_bypass_totals_not_in_prompt() -> None:
+    _, task = build_recency_task(seed=4, n_updates=6, fill_tokens=0, semantic_similar=False)
+    for amt in task.notes["running_totals"]:
+        assert amt not in task.prompt  # totals obtainable ONLY via apply_adjustment
+
+
+# --- rolebind tier (#4-v2): the decisive two-phase large-N test -----------
+def test_rolebind_two_phase_cue_hidden_in_prompt() -> None:
+    _, task = build_rolebind_task(seed=1, kind="high", n_items=8, fill_tokens=0)
+    assert task.notes["cue"] not in task.prompt  # cue revealed by get_refund_request, NOT prompt
+    assert task.notes["target_description"] in task.prompt  # items listed (for cue→order mapping)
+    assert "STEP 1" in task.prompt and "get_refund_request" in task.prompt  # two-phase structure
+
+
+def test_rolebind_needle_pool_and_amount_bypass() -> None:
+    _, task = build_rolebind_task(seed=2, kind="high", n_items=8, fill_tokens=0)
+    edge = task.dependency_edge
+    assert edge is not None and edge.producer == "apply_adjustment" and edge.needle_arg == "amount"
+    assert len(task.competitor_pool) == 7 and edge.needle_id not in task.competitor_pool
+    for amt in [edge.needle_id, *task.competitor_pool]:
+        assert amt not in task.prompt  # amounts obtainable ONLY via apply_adjustment (bypass)
+
+
+def test_rolebind_cue_leakfree_and_from_pool() -> None:
+    for kind in ("low", "high"):
+        _, task = build_rolebind_task(seed=3, kind=kind, n_items=10, fill_tokens=0)
+        # the cue forces SEMANTIC matching (no shared stem with the target description)
+        assert not shared_stems(task.notes["cue"], task.notes["target_description"])
+        descs = {d for d, _ in _POOLS[kind]}
+        assert set(task.notes["bindings"].keys()) <= descs  # staged from the right pool
+
+
+# --- diffuse tier (#4-v2): §1.8 low-discriminability, active vs passive ----
+def test_diffuse_low_cue_and_forced_lures() -> None:
+    _, t = build_diffuse_task(seed=0, cue_disc="low", regime="active", n_items=10, fill_tokens=0)
+    assert t.notes["cue"] == "the tall upright one you can leave unwatered for a month"  # weak cue
+    assert t.notes["target_description"] == "snake plant"
+    assert len(t.notes["lure_amounts"]) == 2  # the two drought-only surface lures are forced in
+    assert all(a in t.competitor_pool for a in t.notes["lure_amounts"])
+    assert t.dependency_edge.needle_id not in t.notes["lure_amounts"]  # type: ignore[union-attr]
+
+
+def test_diffuse_active_hides_amount_passive_dumps_it() -> None:
+    _, a = build_diffuse_task(seed=0, cue_disc="low", regime="active", n_items=10, fill_tokens=0)
+    _, p = build_diffuse_task(seed=0, cue_disc="low", regime="passive", n_items=10, fill_tokens=0)
+    assert a.dependency_edge.producer == "apply_adjustment"  # type: ignore[union-attr]
+    assert a.dependency_edge.needle_id not in a.prompt  # active: amount self-fetched
+    assert a.notes["cue"] not in a.prompt  # active: cue revealed by get_refund_request
+    assert p.dependency_edge.producer is None  # type: ignore[union-attr]
+    assert p.dependency_edge.needle_id in p.prompt and p.notes["cue"] in p.prompt  # passive dumps
+
+
+def test_diffuse_high_cue_is_the_distinctive_control() -> None:
+    _, low = build_diffuse_task(seed=0, cue_disc="low", regime="active", n_items=10, fill_tokens=0)
+    _, high = build_diffuse_task(seed=0, cue_disc="high", regime="active", n_items=10, fill_tokens=0)  # noqa: E501
+    assert high.notes["target_description"] == low.notes["target_description"]  # same target
+    assert high.notes["cue"] != low.notes["cue"]  # control uses the distinctive (high-disc) cue
+    assert not shared_stems(high.notes["cue"], high.notes["target_description"])  # still no leak
