@@ -1,12 +1,17 @@
-# Phase 1.1 #6 — return-format policy: fix it, don't offer the choice
+# Phase 1.1 #6 — return-format policy: fix to inline-detailed (the choice IS used)
 
-> **Outcome: remove the format choice; fix the return to inline-detailed.** Neither a weak model
-> (DeepSeek v4-flash) nor a capable one (Sonnet 4.6) *exploits* an agent-set return-format choice —
-> both default to `detailed` everywhere, even where `concise` is free — so the choice is unexploited
-> overhead. Confirmed across **three models, two families, ~7× capability span**. **#6 prior 45 → 62.**
-> The **behavioral** finding (choice unexploited, cross-provider) is
-> load-bearing; the token ranking is supporting-only (call-count confounded). Written 2026-06-14.
-> Numbers regenerate from `runs/phase-1.1/format/{deepseek-v4-flash,sonnet-4-6}_summaries.jsonl`.
+> **Outcome: if you fix one return format, fix it to inline-detailed — but do NOT conclude "never
+> offer a choice."** The original read of this experiment ("models don't exploit an agent-set format
+> choice → remove it") was **overturned by the three-reviewer pass + a firsthand re-tally**: it
+> rested on a *read-tools-only* slice. The full per-tool view shows **all three models (v4-flash /
+> Sonnet / v4-pro, two families) DO use the choice — and sensibly**: `concise` on the terminal
+> `send_message` (whose return nothing consumes downstream) and `detailed` on the reads it needs. So
+> the choice is **not** unexploited overhead. What survives is the **fixed-arm ranking**: A
+> (inline-detailed) 100% success at lowest (call-count-confounded) cost; D (handle-block) pure
+> overhead; B (concise, handle pruned) → 0%. **#6 prior 45 → 48** (near equipoise: the success
+> discriminator never fired AND the behavioral pillar inverted). Written 2026-06-14; **corrected
+> 2026-06-14 post-review**. Numbers regenerate from
+> `runs/phase-1.1/format/{deepseek-v4-flash,sonnet-4-6,deepseek-v4-pro}_*.jsonl`.
 
 ## Question & arms
 
@@ -39,20 +44,29 @@ Should a tool's return **expose a format choice** to the agent, or **fix** it? T
 Note the token ordering **flips** across models (Sonnet: A<D<C; v4-pro & v4-flash-high: C<A<D) — a
 real format-efficiency effect wouldn't flip by model; this is the call-count confound (below).
 
-## The load-bearing finding (behavioral, confound-free): the choice is unexploited — cross-provider
+## The behavioral finding, CORRECTED: the choice is used — sensibly (per-tool, all decisions)
 
-The choice (C) could pay off only if the agent went **`concise` on returns that don't need a handle**
-(the *tickets* — you're just reading them) and **`detailed` on `get_order`** (handle needed). Reading
-the per-tool `response_format` choices straight from the events:
+> **The original version of this section was wrong** — it tallied `response_format` only on the
+> *read* tools (`get_ticket`/`get_full_ticket_history`/`get_order`) and concluded "detailed
+> everywhere → choice unexploited." It **omitted `send_message`**, the terminal write — where every
+> model goes `concise`. The three-reviewer pass (method-rigor, conf 82) caught it; a firsthand
+> re-tally of `runs/phase-1.1/format/*_events.jsonl` (arm C, all tools) confirms.
 
-- **v4-flash (C):** `detailed` on `get_ticket` ×9, `get_full_ticket_history` ×5, `get_order` ×5 (+1 concise).
-- **v4-pro (C):** `detailed` on `get_ticket` ×6, `get_full_ticket_history` ×3, `get_order` ×3 — all detailed.
-- **Sonnet (C):** `detailed` on **everything** — `get_ticket` ×3, `get_full_ticket_history` ×3, `get_order` ×3.
+Full per-tool `response_format` (concise / total), arm C:
 
-**All three models — two families, ~7× capability span — just default to `detailed`,** including on the tickets where `concise` is free. The
-choice's potential savings are never realized — on a *weak* model and a *capable* one (a ~7×
-capability gap; §0.8). This per-decision signal is **independent of how many calls the agent made**,
-so it's the clean basis for the verdict.
+| tool | role | v4-flash | Sonnet | v4-pro |
+|---|---|---|---|---|
+| `send_message` | terminal write (return unused) | **10/15 concise** | **3/3 concise** | **2/3 concise** |
+| `get_order` | handle source (return consumed) | 3/18 | 0/3 | 0/3 |
+| `get_ticket` | content read | 0/24 | 0/3 | 0/6 |
+| `get_full_ticket_history` | content read | 1/11 | 0/3 | 0/3 |
+
+So **all three models — two families, ~7× span — *do* use the choice, and the usage is sensible**:
+`concise` exactly where it's free (the terminal send nobody reads), `detailed` on the reads whose
+content/handle is needed. This **inverts** the original behavioral claim: the choice is not
+unexploited overhead — it is exercised, and roughly correctly. (Whether it's exercised *optimally*
+is moot for the verdict: arm C matches arm A on success at no clear cost, so offering the choice is
+harmless-to-mildly-helpful, not the overhead the first read claimed.)
 
 ## Why the token ranking is supporting-only (call-count confound)
 
@@ -63,28 +77,34 @@ explains the A>C token gap. So the (directional) ordering — **A cheapest; C an
 (C's per-tool `response_format` schema param; D's `[ids:]` block on every return) with no success
 benefit** — is consistent with the behavioral finding but is not, on its own, load-bearing.
 
-## Verdict — four return-format design rules
+## Verdict — return-format design rules (corrected)
 
-1. **Don't offer the agent a format choice (C).** Models don't spontaneously exploit it (default to
-   `detailed`); the choice just adds the `response_format` schema param to every tool, every turn.
-2. **Fix the return to inline-detailed (A).** Cheapest + 100% success on both providers.
-3. **Don't always-attach a handle-block (D).** Pure per-return overhead, no success benefit.
-4. **Don't over-prune to concise (B).** Pruning a handle the downstream needs → 0% (fabricate/loop).
+1. **If you fix one return format, fix it to inline-detailed (A).** 100% success at the lowest
+   (call-count-confounded) cost on all three models. This is the surviving actionable claim.
+2. **Don't always-attach a handle-block (D).** Pure per-return overhead, no success benefit.
+3. **Don't over-prune to concise (B).** Pruning a handle the downstream needs → 0% (fabricate/loop).
+4. **Offering a per-call choice (C) is NOT harmful — and is mildly used.** *(Reversed from the
+   original "don't offer a choice.")* Arm C matches A on success; the agent spends the choice
+   sensibly (concise on the terminal send, detailed on reads). So "remove the choice, it's
+   unexploited overhead" is **not supported**. Whether to *expose* a choice is now open, not a
+   verdict — the choice is harmless here, and might help under economy pressure (untested).
 
 ## Confidence & caveats
 
-**#6: 45 → 62.** Up because the load-bearing finding (choice unexploited, fixed-detailed dominates)
-is clean and **replicates across three models, two families, a ~7× capability span** (v4-flash,
-v4-pro, Sonnet) — and the token ordering *flips* across them, confirming the token DV is confounded
-(so the behavioral signal is doing the work). Tempered by:
-- **success didn't discriminate** (A/C/D all 100% — the task is easy enough that any handle-providing
-  policy works; only tokens differ);
-- the **token DV is call-count-confounded** (so the efficiency ranking is directional, not decisive);
-- models might exploit the choice **if explicitly prompted to economize** — they don't do it
-  *spontaneously* (untested with economy-pressure prompting).
+**#6: 45 → 48.** Only a small move off the prior, because the position's evidential basis is weak in
+both directions:
+- the **intended discriminator (success) never fired** (A/C/D all 100% — easy task);
+- the **token DV is call-count-confounded** (ordering flips by model → not decisive);
+- and the **behavioral pillar inverted** under the corrected per-tool tally (the choice *is* used).
+What we can say with cross-model support (v4-flash/Sonnet/v4-pro, 2 families): **fixed inline-detailed
+is a safe default; concise-pruned is dangerous (0%); handle-block is overhead.** What we *cannot* say:
+"never offer a choice." The +3 reflects the surviving fixed-arm ranking; equipoise on the choice
+question pending a redesign.
 
-**Retraction:** a model that *spontaneously* goes `concise`-when-safe and thereby Pareto-beats fixed
-detailed (especially under an economy-pressure prompt or a call-count-controlled task).
+**Retraction / revival paths:** (a) an **economy-pressure prompt** ("use concise unless you need the
+ids") + a **call-count-controlled** task would turn the directional token ranking into a real number
+and test whether the choice is *beneficial* (not just used); (b) a harder task where success
+discriminates would test whether arm choice ever *hurts*.
 
 ## Reproduce & cost
 

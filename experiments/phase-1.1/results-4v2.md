@@ -1,11 +1,17 @@
 # Phase 1.1 #4-v2 — Self-generated interference: five designs, one structural conclusion
 
 > The #4 "self-inflicted context rot" investigation, re-instrumented after the chain null.
-> **Outcome: #4(i) does not manifest across four high-discriminability agentic designs; a fifth
-> (low-discriminability) design *does* induce a collapse — but it is the §1.8 identification
-> failure, occurring identically active vs passive. So #4 ⊆ §1.8: agentic self-generation gives
-> the needle an accessibility advantage §1.8's collapse regime lacks, and is neither cause nor
-> cure.** Written 2026-06-13 (diffuse design + banking 2026-06-14). Numbers regenerate from
+> **Outcome: #4(i) does not manifest across five agentic designs at full seed-count — NO collapse
+> was induced (0 mis-binds everywhere at N=12), including the low-discriminability design built to
+> trigger one.** A 5-seed *pilot* of the low-disc design showed a single seed-4 lure-capture
+> (identical in active and passive), which looked like the §1.8 identification failure — but it
+> **did not replicate at 12 seeds** (§0.21; no temperature control, so it was a lucky draw). So the
+> arc is a *third* inconclusive (after the chain null and the binding A/B): the positive control
+> never fired at adequate N. **#4 ⊆ §1.8 stands as a STRUCTURAL ARGUMENT** (§6: self-generation
+> confers the needle an accessibility advantage §1.8's collapse regime lacks — fetching ≠
+> wall-retrieval) **— not an empirical demonstration.** **#4(i) demoted 60 → 15.** Written
+> 2026-06-13; **corrected 2026-06-14** after the full-N run + the three-reviewer pass overturned the
+> pilot "demonstration." Numbers regenerate from
 > `runs/phase-1.1/{binding,refund,recency,rolebind,diffuse}/*summaries.jsonl` + the committed runners.
 
 ---
@@ -35,12 +41,13 @@ agent might trivially succeed, to force the interference to manifest (or prove i
 | 2 | semantic role-binding (1-phase) | exact-match; lexical shortcut | high overlap, N=6 | **held** (5/5) |
 | 3 | recency (proactive interference) | exact-match (cue by recency) | N=40 self-gen totals | **held** (5/5) |
 | 4 | rolebind (2-phase, large-N) | small-N, recency, lexical, **+ burial** | N=16 confusable, **37k buried** | **held** (5/5) |
-| 5 | diffuse (low-disc cue) | **discriminability** (the §1.8 condition) | weak cue + same-type lures | **collapses** (lure-capture, active = passive) |
+| 5 | diffuse (low-disc cue) | **discriminability** (the §1.8 condition) | weak cue + same-type lures | **held** (12/12 both arms; pilot collapse didn't replicate, §6b/§0.21) |
 
 All on DeepSeek **v4-flash** (the cheap workhorse; weak → should collapse *earlier* than frontier,
-making the holds more striking). Designs 1–4 (high-discriminability) produced **zero mis-binds**;
-design 5 (low-discriminability) produced the **only** mis-binds — lure-captures, identical active
-vs passive (§6b) → **#4 ⊆ §1.8**.
+making the holds more striking). **All five designs produced zero mis-binds at full seed-count** —
+designs 1–4 by construction of the rescue each retains, and design 5's pilot lure-capture did not
+survive to N=12 (§6b). So **no agentic collapse was induced**; **#4 ⊆ §1.8 rests on the structural
+argument in §6, not on an observed collapse.**
 
 ---
 
@@ -216,50 +223,75 @@ advantage** — the value arrives fresh / labeled / recent. Therefore:
 > only non-tautological residual is §1.8 **relocated to fetch-time** (can the agent identify *what*
 > to fetch under a diffuse cue — which is the same diffuse-retrieval problem).
 
-## 6b. Design 5 — the diffuse low-disc test (RUN): #4 ⊆ §1.8, illustrated
+## 6b. Design 5 — the diffuse low-disc test (RUN): the pilot collapse did NOT replicate
 
 We then *built and ran* the missing condition: a **low-discriminability** cue (the §1.8 collapse
 condition) over same-type competitors, **active vs passive** (`tasks/diffuse.py`,
-`run_diffuse.py`, `diffuse/*summaries.jsonl`). It produced the **only mis-binds of the entire
-arc** — and they were clean **lure-captures**:
+`run_diffuse.py`, `diffuse/*summaries.jsonl`).
+
+**The pilot (5 seeds) looked decisive — and was wrong.** It produced the only mis-binds of the
+arc, a clean **lure-capture** at **seed 4**, in *both* arms:
 
 > cue = *"the long-lasting indoor flower most often given as a gift"*; the agent issued the
 > **peace lily's** refund (a same-type surface-lure) instead of the **moth orchid's** (the target)
-> — surface-pull beating meaning, the textbook §1.8 failure.
+> — surface-pull beating meaning, the textbook §1.8 failure — and it occurred **identically in
+> low-active and low-passive** (same scenario, same seed).
 
-Decisively, it occurred **identically in active and passive** (same scenario, same seed: low-active
-*and* low-passive both mis-bound to the lure). The collapse is in **identification** (cue→item),
-which self-generation **neither caused nor cured** → **#4 ⊆ §1.8, demonstrated**, not just argued.
-The high-disc control held (`high-active`/`high-passive` = 0 mis-binds) → the cue is solvable; the
-collapse is real (§0.18 gate passed).
+This was banked (2026-06-13) as "#4 ⊆ §1.8, demonstrated." **It does not survive the full run.**
+At **12 seeds on the identical deterministic scenarios**, the low-disc cells return **0 mis-binds —
+12/12 correct-use in BOTH arms** (`diffuse/full_*_summaries.jsonl`):
 
-**But a clean *rate* is precluded by a gradeable/luring tradeoff on this substrate.** A
+| disc × regime | pilot (n=5) | full (n=12) |
+|---|---|---|
+| low-active | 4 correct, **1 mis-bind (seed 4)** | **12/12 correct, 0 mis-bind** |
+| low-passive | 4 correct, **1 mis-bind (seed 4)** | **12/12 correct, 0 mis-bind** |
+| high-active | 5/5 correct | 12/12 (1 re-fetch) |
+| high-passive | — | 12/12 correct |
+
+The loop sets no `temperature`, so the seed-4 mis-bind was a **single non-replicating sampling
+draw** — the **§0.21 trap** (a clean pilot curve evaporating at full N), sprung here on the very
+arc that *named* §0.21 as a lesson. So **Design 5 also HELD at adequate N**: the low-disc
+operationalization never reached §1.8's collapse regime (consistent with the gradeable/luring
+tradeoff below — a cue vague enough to lure isn't *reliably* luring across seeds).
+
+**What this changes, and what survives.** No agentic collapse was induced in the entire arc → there
+is **no observed collapse to attribute**, so "#4 ⊆ §1.8" is **no longer demonstrated** — it reverts
+to the **structural argument** of §6 (self-generation confers an accessibility advantage §1.8's
+regime lacks; fetching ≠ wall-retrieval). The one sub-observation that *does* survive is
+provenance-blindness: self-generation made **no difference** — active and passive behaved
+**identically** in both the pilot (both collapsed at seed 4) and the full run (both hold) — so
+whatever the truth, self-generation is **neither cause nor cure**. But that is consistent with #4 ⊆
+§1.8 *and* with "the cue was simply too easy"; the data cannot separate them. This is the **third
+inconclusive** (chain null, binding A/B, now diffuse): each time the positive control failed to
+fire at full N.
+
+**The gradeable/luring tradeoff (why a clean collapse — and a rate — stayed out of reach).** A
 strengthening pass with sharper *two-attribute* cues (target matches both, lures match the surface
 attribute only) **over-corrected to 0/48**: the distinguishing attribute makes the cue *high-disc*
-→ no lure. Meanwhile the vaguer luring cues have *fuzzy* answers (peace-lily-as-a-gift isn't
-clearly wrong). So: **gradeable ⇒ no lure; luring ⇒ ungradeable** — there is no clean window for
-v4-flash on fuzzy-semantic cues. The magnitude is sweet-spot-dependent and not cleanly quantifiable
-here — §1.8's known sweet-spot difficulty (`results-cross-family.md`, §0.18), reconfirmed. A hard
-number would require porting §1.8's *own* unique-answer needle (clear answer + low-sim question +
-same-type distractors) into the agentic frame — a separate build.
-
-So the immunity question resolves as anticipated: the collapse, when induced, is the §1.8
-identification failure and is **provenance-blind** (active = passive). "Agentic self-fetch resists
-rot" remains a structural near-tautology (fetching ≠ wall-retrieval); the residual is §1.8 at
-fetch-time, and §1.8 itself is what fires when the cue goes low-disc.
+→ no lure. The vaguer luring cues have *fuzzy* answers (peace-lily-as-a-gift isn't clearly wrong)
+**and**, we now know, don't lure reliably across seeds. So: **gradeable ⇒ no lure; luring ⇒ fuzzy
+and seed-unstable** — there is no clean window for v4-flash on fuzzy-semantic cues. Inducing (let
+alone quantifying) an agentic collapse requires porting §1.8's **own** unique-answer needle (clear
+answer + low-sim question + same-type distractors) into the agentic frame — a separate build, best
+framed later as **RAG-vs-grep** (tool-retrieval vs in-context disambiguation).
 
 ---
 
 ## 7. Disposition
 
 **Positions**
-- **#4(i) — demote 60 → 25 (author-set, 2026-06-14).** "Self-inflicted context rot in
-  self-generated trajectories" did **not** manifest across four high-disc designs; and when a
-  collapse *was* induced (Design 5, low-disc) it was the **§1.8 identification failure**, occurring
-  **identically active vs passive** — so #4(i) is **not a separate effect: #4 ⊆ §1.8.** The
-  pre-registered retraction (correct-use flat w.r.t. competition/fill) was met four times; the
-  residual 25 covers "rot can occur in agentic trajectories" (which is just §1.8 applying). Not a
-  novel mechanism.
+- **#4(i) — demote 60 → 15 (author-set, 2026-06-14; corrected after the three-reviewer pass).**
+  "Self-inflicted context rot in self-generated trajectories" did **not** manifest across **all five**
+  designs at full seed-count — **no collapse was induced** (0 mis-binds everywhere at N=12),
+  including the low-disc design built to trigger one. The pre-registered retraction (correct-use
+  flat w.r.t. competition/fill) was met **five times**. This is the **third independent inconclusive**
+  (chain null, binding A/B, diffuse) — each time the positive control failed to fire at adequate N,
+  so we have **no positive evidence** of an agentic self-inflicted rot mechanism. **#4 ⊆ §1.8
+  remains a structural argument** (§6), not a demonstration (the pilot collapse evaporated at full N,
+  §6b/§0.21). The residual **15** reflects: low confidence that agentic self-generation has a
+  *distinct* rot mechanism beyond §1.8 — supported only by the §6 near-tautology + three failures to
+  induce, with zero positive observations. Not a novel mechanism; arguably not yet *testable* on
+  this substrate (→ RAG-vs-grep).
 - **#4(ii) — park (untestable here).** The return-shape fix-lever can only be measured *once a
   collapse exists to fix*. The only collapse (Design 5) was an **identification** failure (cue→item
   lure-capture) — not a return-*shape* problem, so the lever has nothing to act on. Revive only
@@ -310,10 +342,11 @@ uv run python experiments/phase-1.1/run_diffuse.py  --grid full --n-seeds 12 --g
 
 ## 9. Open / future
 
-- **A hard collapse *rate*** — Design 5 *demonstrated* the §1.8 collapse agentically (lure-capture,
-  active = passive) but couldn't *quantify* it (the gradeable/luring tradeoff, §6b). Getting a rate
+- **Inducing an agentic collapse at all** — Design 5 did *not* reproduce the §1.8 collapse at full N
+  (the pilot lure-capture didn't replicate, §6b). Even *inducing* one (let alone quantifying a rate)
   needs porting §1.8's own unique-answer needle (clear answer + low-sim question + same-type
-  distractors) into the agentic frame — gradeable *and* luring — likely as part of the
+  distractors) into the agentic frame — gradeable *and* reliably luring — likely as part of the
   **RAG-vs-grep** debate (a later module), framed as tool-retrieval vs in-context disambiguation.
+  Until then the agentic-interference question is genuinely **untested**, not resolved.
 - The five tiers (binding/refund/recency/rolebind/diffuse) are reusable substrate; the confusable
   pools + no-leak cues are stem-validated and extensible for larger N or a capability ladder.

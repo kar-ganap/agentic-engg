@@ -1,11 +1,13 @@
 # Phase 1.0 (ext) — §1.8 Length-Extension Pressure Test (results)
 
 > Goal: pressure-test §1.8's **pillar B** — *"competition, not token count, drives the
-> retrieval collapse"* — out of its measured range (≤100k) to **~1M tokens** on a
-> **non-Anthropic family** (DeepSeek), now that the v4-flash window is mapped at ~1M.
-> **Outcome: pillar B holds cross-provider for *capable* models; a *mild* pure-length
-> effect emerges only at extreme length; §1.8 → 80.** Written 2026-06-13. Numbers
-> regenerate from committed code + `runs/phase-1.0/clean_essay__neutral__high__deepseek-*.jsonl`.
+> retrieval collapse"* — out of its measured range (≤100k) toward **~758k tokens** on
+> **one capable non-Anthropic model** (DeepSeek v4-pro; n=1 cross-family).
+> **Outcome: pillar B holds on the capable cross-family model — the neutral null is flat
+> to ~94k and shows only a *mild* pure-length decay by 758k (0.67); "holds to ~1M" would
+> overstate. §1.8 → 80.** Written 2026-06-13; phrasing tightened 2026-06-14 (three-reviewer
+> pass). Numbers regenerate from committed code +
+> `runs/phase-1.0/clean_essay__neutral__high__deepseek-*.jsonl`.
 
 ## Why this cell (and not the cross-family attempt's)
 

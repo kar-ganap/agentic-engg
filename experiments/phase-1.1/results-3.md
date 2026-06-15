@@ -6,8 +6,10 @@
 > task changes (**swap**)? There is a break-even in superset size: **carry below it, swap above it.**
 > We **predicted** the crossover analytically (pre-registered N\* ≈ 5,111 tool-tokens) and
 > **verified** it empirically on DeepSeek v4-flash (N\* ≈ 6,461 actual tool-tokens) — same direction,
-> same curve shape (carry linear in tool-size, swap flat), location matched to **~26%**, with the
-> residual fully attributable to the measured swap floor overshooting the nominal target (+22%).
+> same curve shape (carry linear in tool-size, swap flat), location matched to **~26%**. The residual
+> decomposes cleanly into **calibration, not mechanism**: actual S/C/k overshot the nominal targets,
+> raising both the swap floor (+22%) and the carry intercept (+19%), while the carry **slope — the
+> mechanism — matched the prediction to <0.1%**.
 > **#3 prior 70 → 78** (qualifies §1.1 cache leg). Single-provider (DeepSeek); the break-even *location* is
 > provider- and session-shape-dependent (TTL, hit/miss ratio) — the **existence + the cost model**
 > is the cross-provider claim, not the number. Written 2026-06-14. Regenerates from
@@ -80,10 +82,12 @@ measurement-discipline fixes were needed and both materially moved the result:
 | swap floor | $1.82e-3 | $2.22e-3 (+22%) |
 
 **The crossover exists, the curve shapes match the cost model exactly, and the location matched the
-pre-registered prediction to ~26%.** The residual is calibration, not mechanism: the measured swap
-floor came in 22% above the nominal target (actual S/C/k overshoot the predictor's targets), and a
-higher swap floor lets carry stay competitive to a larger superset — pushing N\* up, in the observed
-direction and rough magnitude.
+pre-registered prediction to ~26%.** The residual is calibration, not mechanism, and decomposes:
+the actual S/C/k overshot the predictor's nominal targets, raising **both** the swap floor (+22%) and
+the carry intercept (+19%); the carry **slope — the load-bearing mechanism — matched to <0.1%**
+(predicted 0.1596/MTok, empirical 0.1597). A higher swap floor lets carry stay competitive to a
+larger superset, pushing N\* up — the observed direction and rough magnitude. (Re-pinning the
+predictor to the *measured* S/C/k reproduces ~6,461; what's pinned is the mechanism, not the number.)
 
 ## What this is, and isn't
 
@@ -112,3 +116,21 @@ direction and rough magnitude.
   changes the needed tool set.
 - The model-coherence question (does a swapping agent hallucinate stale tool names?) is the §1.1
   follow-on and is **not** addressed here — swap's *correctness* cost, separate from its dollar cost.
+
+## Prior art to engage (three-reviewer pass, prior-art reviewer conf 90 — VERIFY each ID firsthand before citing)
+
+The carry-vs-swap question sits squarely in the **dynamic-tool-loading / tool-retrieval** literature
+(the "swap" arm = retrieve-a-subset, the standard remedy for large tool universes) and the
+**prompt-cache-economics** literature (the "carry" arm = cache-stable superset). A domain reviewer
+would expect these cited; **#3's novelty must be scoped to the *break-even in superset size* (the
+crossover where swap overtakes carry) + the carry-linear/swap-flat cost model**, not to "swapping
+exists" or "caching helps." Reference classes to verify and cite (the background verifier was blocked
+on web permissions; **do not assert these IDs until checked**):
+- *prompt-cache strategy for agentic tasks* — a claimed near-twin ("Don't Break the Cache," ~2026)
+  reportedly finds carry/avoid-dynamic-calls cheaper with linear-in-tool-count cost; if real, it
+  confirms the carry-linear half but (per the reviewer) does **not** derive the swap-overtakes
+  crossover — that's #3's delta. **Verify before relying on this framing.**
+- *tool-retrieval / minimal-tool-set* — RAG-MCP, "How Many Tools Should an LLM Agent See?",
+  LongFuncEval (tool-catalog size → accuracy drop, i.e. the §1.1 *coherence* cost #3 leaves untested).
+- *prefix-caching mechanics* — Manus (cache discipline), Anthropic prompt-caching docs, vLLM
+  automatic prefix caching (already in synthesis §4 reading notes).

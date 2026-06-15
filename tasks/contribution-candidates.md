@@ -54,24 +54,30 @@
 *passive* settings (§1.8; arXiv:2506.08184) may **not** transfer to agentic tasks where the agent
 **fetches** the needle itself — an "agentic immunity."
 
-**Disposition: DEMOTED/REFRAMED 2026-06-14 — not a novel effect (`results-4v2.md`, #4-v2).** Five
-designs settled it. Across **four high-discriminability** designs (exact-key binding to 953k;
-semantic role-binding N≤6; recency N=40; two-phase rolebind N=16 buried to 37k) agentic retrieval
-held (0 mis-binds). A fifth **low-discriminability** design (diffuse cue + same-type lures) *did*
-collapse — but as the **§1.8 identification failure, identically active vs passive** (lure-capture
-on the same scenario/seed in both arms). So:
+**Disposition: DEMOTED → INCONCLUSIVE 2026-06-14 — structural argument only (`results-4v2.md`, #4-v2;
+corrected after the three-reviewer pass; #4(i) 60→15).** Five designs, **all held at full
+seed-count** (0 mis-binds — exact-key binding to 953k; semantic role-binding N≤6; recency N=40;
+two-phase rolebind N=16 buried to 37k; **and** the low-discriminability diffuse design built to
+collapse). A 5-seed *pilot* of the low-disc design showed a seed-4 lure-capture (active=passive),
+banked as "demonstrated ⊆ §1.8" — but it **did not replicate at 12 seeds** (§0.21; no temperature
+control). So **no agentic collapse was induced** (a third inconclusive, after the chain null and
+binding A/B). The claim survives only as a **structural argument**:
 
 > **Agentic self-generation confers a *structural accessibility advantage*** — the value arrives
 > fresh / recent / uniquely-labeled, an advantage §1.8's collapse regime lacks. It **sidesteps**
 > wall-retrieval (a near-tautology: fetching ≠ retrieving from a buried wall) rather than refuting
-> §1.8. When a collapse *is* induced (low-disc cue), it's §1.8 acting at the identification step —
-> **provenance-blind**, neither caused nor cured by self-generation. **#4 ⊆ §1.8.**
+> §1.8. **#4 ⊆ §1.8 — argued, not demonstrated** (we never induced a collapse to attribute).
 
-So: **weaker than hoped** — not a separate mechanism. The genuinely-novel agentic question (does
-tool-*retrieval* beat in-context disambiguation under diffuse competition?) is the **RAG-vs-grep**
-debate (a later module), and *that* — not "immunity" — is where to revisit it, using §1.8's own
-unique-answer needle ported to the agentic frame (the only way to get a gradeable collapse *rate*;
-the fuzzy-semantic cues here can't, §6b gradeable/luring tradeoff).
+**Prior-art to engage (prior-art reviewer, conf 88 — VERIFY firsthand before citing):** the
+"self-generated content is recalled better" intuition is the cognitive-psych **generation effect**
+(Slamecka & Graf 1978) — cite it as the reference class to *distinguish from*: the human effect is
+encoding-depth, any LLM "advantage" is purely token-position/recency/labeling (a transformer has no
+memory of having generated anything — synthesis §1.4), which *strengthens* the "near-tautology, not
+a novel cognitive immunity" honesty. So: **weaker than hoped** — not a separate mechanism, and not
+even empirically demonstrated. The genuinely-novel agentic question (does tool-*retrieval* beat
+in-context disambiguation under diffuse competition?) is the **RAG-vs-grep** debate (a later module),
+using §1.8's own unique-answer needle ported to the agentic frame — the only route to a gradeable
+collapse *rate* (the fuzzy-semantic cues here can't, §6b gradeable/luring tradeoff).
 
 **Adjacencies:** synthesis §1.8; arXiv:2506.08184 (proactive interference); RULER (multi-key NIAH);
 the RAG-vs-grep debate (Module later). Bonus harness artifact: the **stem-checker** (`shared_stems`)
@@ -79,27 +85,32 @@ the RAG-vs-grep debate (Module later). Bonus harness artifact: the **stem-checke
 
 ---
 
-## [CANDIDATE-CONTRIBUTION] Agents don't exploit return-format choices — so fix the format
+## [CANDIDATE-CONTRIBUTION] Fix the return format to inline-detailed (and a measurement-honesty note)
 
-**Pitch:** A common tool-design instinct is to let the agent pick a return format per call (a
-`response_format` enum) to economize. Measured (#6, `experiments/phase-1.1/results-6.md`):
-**none of three models — v4-flash, v4-pro, Sonnet 4.6 (two families, ~7× capability span) —
-spontaneously exploits the choice** — all default to the verbose `detailed` form *everywhere*, even
-on returns where a concise form is free (so not a weak-model artifact). So the choice is
-unexploited overhead; a fixed **inline-detailed** return dominates, an always-attach **handle-block**
-is pure overhead, and pruning to **concise** breaks any downstream that needs the handle. Concrete,
-cross-provider tool-design guidance: *fix the return format; don't offer a choice the model won't use*.
+**Pitch (CORRECTED 2026-06-14 after the three-reviewer pass).** The tempting story — "let the agent
+pick a return format per call and it won't bother, so don't offer the choice" — **did not survive
+review.** A *read-tools-only* tally suggested "models default to `detailed` everywhere"; the full
+per-tool view (#6, `experiments/phase-1.1/results-6.md`) shows **all three models (v4-flash, v4-pro,
+Sonnet 4.6, two families) DO use the choice — sensibly**: `concise` on the terminal `send_message`
+(return unused), `detailed` on the consumed reads. So the choice is **not** unexploited overhead.
+What's left is a narrower, still-useful claim: among *fixed* policies, **inline-detailed dominates**
+(100% success, lowest call-count-confounded cost); an always-attach **handle-block is overhead**; and
+**concise-pruned breaks** any downstream needing the handle. Plus a sharper methodological story — *a
+behavioral signal is only confound-free if you tabulate every decision, not a subset* (the original
+error). The contribution is now the **fix-to-inline-detailed guidance + the measurement caveat**, not
+"agents ignore the choice."
 
 **Audience:** agent/tool builders; the "writing effective tools" practitioner audience (Anthropic
 tool-design blog); MCP server authors.
 
-**Dependencies:** #6 (now 60). To strengthen: an **economy-pressure prompt** ("use concise unless
-you need the ids") to test whether the choice is *usable* (vs merely un-used-by-default), and a
-**call-count-controlled** task so the token-efficiency ranking (A < C, D) becomes a clean number.
+**Dependencies:** #6 (now **48**). To strengthen: an **economy-pressure prompt** ("use concise unless
+you need the ids") to test whether the choice is *beneficial* (not just used), and a
+**call-count-controlled** task so the token-efficiency ranking becomes a clean number.
 
-**Status:** filed 2026-06-14 from the #6 sweep + Sonnet anchor. Confidence-adjacent to #6 (60).
-Caveat: success didn't discriminate (easy task) — the load-bearing evidence is the *behavioral*
-non-exploitation, not the (call-count-confounded) token totals.
+**Status:** filed 2026-06-14 from the #6 sweep + anchors; **reframed same-day after the reviewer pass
+inverted the behavioral claim**. Confidence-adjacent to #6 (**48**). Caveat: success didn't
+discriminate (easy task) and the behavioral pillar inverted — the durable part is the fixed-arm
+ranking, not a claim about whether to offer a choice.
 
 **Adjacencies:** the Anthropic "writing effective tools for agents" blog (Module 2 source); §3.3
 (tokens/KV-cache economy); the five reusable tool-use tiers + the per-arm A/B/C/D `make_tools`.
