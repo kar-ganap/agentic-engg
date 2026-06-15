@@ -30,7 +30,7 @@
 
 **Status:** filed 2026-06-01. **First data landed 2026-06-04** (`experiments/phase-1.0/results.md`). **Prior-art reframe (three-reviewer pass, 2026-06-05 — RULER read firsthand):** the bare **localized↔diffuse distractor-*count* axis is NOT the contribution** — RULER (Hsieh et al., arXiv:2404.06654) already spans it (Multi-key NIAH: 4 fixed distractors ≈ localized; `num_keys = full haystack` ≈ diffuse) and reports the same headline (perfect vanilla NIAH → large drops with length → "failure to ignore distractors"). **The defensible delta, which neither Chroma nor RULER does (verified firsthand):** (a) **distractor relatedness/potency as a swept knob** — RULER uses same-format random distractors and "does not vary distractor similarity"; we show a potency dose-response (the realism v1<v2<templated curve: knee ~10k saturated → ~50k natural-mixed, still collapsing by 100k); (b) an **agentic-structure substrate** (`tool_call_stream`; planned `research_doc_stream`) vs RULER's noise/PG-essays; (c) a **committed (confident-usable) vs mentioned collapse** — discriminability fails before burial — which RULER's failure-mode analysis doesn't isolate. So: cite RULER + Chroma as prior art; claim only (a)+(b)+(c). Re-evaluate after `research_doc_stream` + the §5 relatedness sweep + cross-provider (DeepSeek) replication.
 
-**Adjacencies:** Chroma *Context Rot*; **RULER (arXiv:2404.06654)**; the NIAH-critique lineage (RULER intro; Michelangelo, DeepMind 2024); synthesis §1.3 (lower-bound), §3.4, §3.6, §5.1, §1.8, §5.2; the curriculum's Module 1 context-rot exercise.
+**Adjacencies:** Chroma *Context Rot*; **RULER (arXiv:2404.06654)**; **NoLiMa (arXiv:2502.05167, ICML 2025)** — lexical-overlap-removal → length-coupled degradation, the semantic-routing mechanism, 12 models (verified 2026-06-14); the NIAH-critique lineage (RULER intro; Michelangelo, DeepMind 2024); synthesis §1.3 (lower-bound), §3.4, §3.6, §5.1, §1.8, §5.2; the curriculum's Module 1 context-rot exercise.
 
 ---
 
@@ -68,12 +68,13 @@ binding A/B). The claim survives only as a **structural argument**:
 > wall-retrieval (a near-tautology: fetching ≠ retrieving from a buried wall) rather than refuting
 > §1.8. **#4 ⊆ §1.8 — argued, not demonstrated** (we never induced a collapse to attribute).
 
-**Prior-art to engage (prior-art reviewer, conf 88 — VERIFY firsthand before citing):** the
-"self-generated content is recalled better" intuition is the cognitive-psych **generation effect**
-(Slamecka & Graf 1978) — cite it as the reference class to *distinguish from*: the human effect is
-encoding-depth, any LLM "advantage" is purely token-position/recency/labeling (a transformer has no
-memory of having generated anything — synthesis §1.4), which *strengthens* the "near-tautology, not
-a novel cognitive immunity" honesty. So: **weaker than hoped** — not a separate mechanism, and not
+**Prior-art (prior-art reviewer, conf 88 — verified firsthand 2026-06-14):** the "self-generated
+content is recalled better" intuition is the cognitive-psych **generation effect** (Slamecka & Graf,
+1978, *J. Exp. Psychol.: Human Learning & Memory* 4(6):592–604 — five experiments, generate > read).
+Cite it as the reference class to *distinguish from*: the human effect is encoding-depth, any LLM
+"advantage" is purely token-position/recency/labeling (a transformer has no memory of having generated
+anything — synthesis §1.4), which *strengthens* the "near-tautology, not a novel cognitive immunity"
+honesty. So: **weaker than hoped** — not a separate mechanism, and not
 even empirically demonstrated. The genuinely-novel agentic question (does tool-*retrieval* beat
 in-context disambiguation under diffuse competition?) is the **RAG-vs-grep** debate (a later module),
 using §1.8's own unique-answer needle ported to the agentic frame — the only route to a gradeable

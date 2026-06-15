@@ -117,20 +117,24 @@ predictor to the *measured* S/C/k reproduces ~6,461; what's pinned is the mechan
 - The model-coherence question (does a swapping agent hallucinate stale tool names?) is the §1.1
   follow-on and is **not** addressed here — swap's *correctness* cost, separate from its dollar cost.
 
-## Prior art to engage (three-reviewer pass, prior-art reviewer conf 90 — VERIFY each ID firsthand before citing)
+## Prior art (three-reviewer pass, prior-art reviewer conf 90 — all IDs verified firsthand 2026-06-14)
 
 The carry-vs-swap question sits squarely in the **dynamic-tool-loading / tool-retrieval** literature
 (the "swap" arm = retrieve-a-subset, the standard remedy for large tool universes) and the
-**prompt-cache-economics** literature (the "carry" arm = cache-stable superset). A domain reviewer
-would expect these cited; **#3's novelty must be scoped to the *break-even in superset size* (the
-crossover where swap overtakes carry) + the carry-linear/swap-flat cost model**, not to "swapping
-exists" or "caching helps." Reference classes to verify and cite (the background verifier was blocked
-on web permissions; **do not assert these IDs until checked**):
-- *prompt-cache strategy for agentic tasks* — a claimed near-twin ("Don't Break the Cache," ~2026)
-  reportedly finds carry/avoid-dynamic-calls cheaper with linear-in-tool-count cost; if real, it
-  confirms the carry-linear half but (per the reviewer) does **not** derive the swap-overtakes
-  crossover — that's #3's delta. **Verify before relying on this framing.**
-- *tool-retrieval / minimal-tool-set* — RAG-MCP, "How Many Tools Should an LLM Agent See?",
-  LongFuncEval (tool-catalog size → accuracy drop, i.e. the §1.1 *coherence* cost #3 leaves untested).
+**prompt-cache-economics** literature (the "carry" arm = cache-stable superset). **#3's novelty is
+scoped to the *break-even in superset size* (the crossover where swap *overtakes* carry) + the
+carry-linear/swap-flat cost model** — not "swapping exists" or "caching helps." Reference classes:
+- *prompt-cache strategy for agentic tasks* — **"Don't Break the Cache: An Evaluation of Prompt
+  Caching for Long-Horizon Agentic Tasks," arXiv:2601.06007** (Jan 2026; cross-provider OpenAI/
+  Anthropic/Google on DeepResearch Bench). Nearest prior art: it finds **excluding dynamic tool
+  *results* from the cache** beats naive full-context caching, confirming the "don't bust the cache"
+  principle + linear cost. **It does NOT derive a break-even in tool-*definition* superset size where
+  *swap overtakes carry*** — and it caches results, not the carry-vs-swap of tool *defs*. That
+  crossover + cost-model is #3's delta. (Cite-and-distinguish.)
+- *tool-retrieval / minimal-tool-set* (the "swap" arm's reference class) — **RAG-MCP, arXiv:2505.03275**
+  (>50% prompt-token cut; selection accuracy 13.6%→43.1%); **"How Many Tools Should an LLM Agent See?
+  A Chance-Corrected Answer," arXiv:2605.24660** (Bits-over-Random; registries 20–3,251 tools).
+- *carrying-a-large-tool-block's correctness cost* (the §1.1 coherence leg #3 leaves untested) —
+  **LongFuncEval, arXiv:2505.10570** (large tool catalog → function-calling accuracy degrades).
 - *prefix-caching mechanics* — Manus (cache discipline), Anthropic prompt-caching docs, vLLM
   automatic prefix caching (already in synthesis §4 reading notes).

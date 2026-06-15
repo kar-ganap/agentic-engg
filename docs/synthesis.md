@@ -75,11 +75,13 @@ leg is untouched (swap's *correctness* cost is separate and still untested). *Re
 down 20–30):* a controlled measurement showing no carry/swap crossover within a realistic superset range
 on any prefix-cached provider, OR carry remaining cheaper at all superset sizes (cost not linear in tool-
 block size). *Anchor pending:* Claude (10× discount / 5-min TTL) to confirm the location moves as modelled.
-*Prior art to engage (verify firsthand before citing — three-reviewer pass):* the carry-vs-swap question
-sits in the **dynamic-tool-loading / tool-retrieval** literature (RAG-MCP; "How Many Tools…"; LongFuncEval)
-and **prompt-cache-economics** (Manus; a claimed ~2026 near-twin "Don't Break the Cache"; vLLM prefix
-caching) — scope #3's novelty to the *break-even-in-superset-size crossover + the carry-linear/swap-flat
-cost model*, not to "swapping exists" or "caching helps." See `results-3.md` § Prior art to engage.
+*Prior art (verified firsthand 2026-06-14, three-reviewer pass):* the carry-vs-swap question sits in the
+**dynamic-tool-loading / tool-retrieval** literature (RAG-MCP arXiv:2505.03275; "How Many Tools…"
+arXiv:2605.24660; LongFuncEval arXiv:2505.10570 for the carry-side correctness cost) and
+**prompt-cache-economics** (Manus; near-twin **"Don't Break the Cache"** arXiv:2601.06007 — confirms
+don't-bust-the-cache + linear cost but does **not** derive the swap-overtakes crossover; vLLM prefix
+caching). #3's novelty = the *break-even-in-superset-size crossover + the carry-linear/swap-flat cost
+model*, not "swapping exists" or "caching helps." See `results-3.md` § Prior art.
 
 **Status:** candidate (pre-2.0). Registered 2026-06-01. Preconditions added 2026-06-01. #3 carry-vs-swap break-even refinement added 2026-06-14 (conf 78).
 
@@ -301,6 +303,8 @@ Load-bearing only in the **intersection** of:
 **Retraction criterion (the actual commitment):** demote if **(a)** any model shows a *neutral* (no-competition) knee *below* its diffuse knee — i.e. pure length rots before competition does, restoring token-count as primary — or **(b)** diffuse competition *fails* to collapse confident retrieval in a different model family. Clause (b)'s *within-family* leg is discharged (Sonnet 4.6 replicates the collapse); the *cross-family* leg is **open** (see caveat). Clause (a) is **reinforced** by the 2026-06-13 length-extension: DeepSeek v4-pro's *neutral* degradation appears only at ~758k — ≈7× *above* its competition knee — so pure length rots much *later* than competition, never before (`results-length-extension.md`).
 
 **Generality caveat (cross-family/cross-structure attempt, 2026-06-05; `experiments/phase-1.0/results-cross-family.md`):** the confidence is grounded in **one structure × low-sim** (`tool_call_stream`). The attempt to extend it found the effect is **entangled with structure × needle-question-similarity** and does *not* port straightforwardly: (i) DeepSeek on `tool_call_stream` is **confounded** — the tool-call history primes provider-specific tool-call continuation (the §0.11 no-tools fix is Anthropic-specific), and DeepSeek's diffuse degradation appears as *abstention*, not the discriminability collapse; (ii) the provider-neutral `clean_essay` structure can't isolate the effect — low-sim wrecks the *control* (the model won't bridge folio↔manuscript in a prose framing, failing even with zero competitors), and high-sim makes diffuse too easy (verbatim exact-phrase match). So the clean `tool_call_stream` result exploited a structure-specific sweet spot; **cross-structure / cross-provider generality is not established**, and clause (b) is harder to discharge than a single replication run. A clean test needs a *structure-invariant* needle (mid-similarity). This bounds the *generality*, not the headline within its regime.
+
+**Independent corroboration (literature, added 2026-06-14, verified firsthand — three-reviewer pass):** **NoLiMa** (Modarressi et al., *Long-Context Evaluation Beyond Literal Matching*, arXiv:2502.05167, ICML 2025) directly supports pillar B and is **cross-model (12 LLMs)**: when needle↔question *literal* overlap is removed (forcing latent/semantic association), retrieval degrades sharply with length — 10/12 models drop below 50% of their short-context baseline by 32k (GPT-4o 99.3%→69.7%) — and the authors attribute the decline to *attention difficulty when literal matches are absent*, i.e. the **semantic-routing** difficulty, not raw token count. This is the same mechanism as our `low`-similarity (semantic-routing) design (§3.6) and strengthens the "not literal length" core; it does **not** discharge clause (b) (it varies lexical overlap, not diffuse competition density).
 
 **Preconditions:**
 - Retrieval or reasoning over long context (the regime where rot occurs at all; ≥ ~knee length).
