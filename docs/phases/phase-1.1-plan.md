@@ -202,19 +202,21 @@ accuracy in isolation is the thing to avoid.
   prompt/response-pair structure: task + checkable end-state, graded by code
   and/or judge).
 
-## Open gates / smoke tests (run before building the suite)
+## Gates / smoke tests
 
-- **DeepSeek declared-tools smoke test** — does the Anthropic-compat endpoint
-  handle *declared* tools cleanly, or leak DSML markup? Fall back to DeepSeek's
-  native OpenAI-format client if it leaks (§0.17/§0.19). *This is the Module 2
-  entry gate baked in from the Phase 1.0-ext finding.*
-- Does DeepSeek carry reasoning across the tool loop (interleaved-thinking
-  transfer)? Determines whether the interleaved-thinking micro-experiment is
-  feasible on the primary substrate.
-- **Partial-tool-name prefill test** (bears on position #1) — does Anthropic /
-  DeepSeek allow assistant-prefill into a *partial tool name* (Manus's tier-ii
-  group-masking trick), or are we tier-iii (structured `tool_choice` only)? Decides
-  whether masking-vs-swap is *forced* on our stack.
+- **DeepSeek declared-tools smoke test — RESOLVED CLEAN ✅ (2026-06-10).** With a tool
+  *declared*, DeepSeek's Anthropic-compatible endpoint returns a structured `tool_use`
+  block (`stop_reason='tool_use'`), **no DSML leak** — the §0.17 leak was the contrived
+  no-tools artifact, as predicted. → **Build the harness on the Anthropic-compatible
+  endpoint; no native-OpenAI fallback needed.** Probe: `experiments/phase-1.1/smoke_declared_tools.py`.
+  **Confirmed conjunctive** by a paired 2×2 (`smoke_dsml_factorial.py`): leak **3/30**
+  only in `stream×no-tools`; **0/30** in `stream×tools`, `flat×none`, `flat×tools` —
+  declaring tools eliminates it (§0.17).
+- **Interleaved-thinking transfer — observed ✅ (bonus, same probe).** The response also
+  carried a `thinking` block *before* the tool call → DeepSeek v4-flash reasons in the
+  tool loop; the interleaved-thinking micro-experiment is feasible on the primary substrate.
+- **Partial-tool-name prefill test (tier ii/iii) — DEFERRED** with #1/#2 (masking is
+  out of v1 focused-core scope). Only needed if masking comes into scope.
 
 ## Substrate
 
@@ -372,14 +374,108 @@ since nothing here is measured yet. Only the **committed** positions get priors;
 - **#4(i) — mechanism (rot exists; competition degrades retrieval in self-generated trajectories): prior 60.** Grounded in §1.8 + §0.8 (mechanism transfers), tempered because cross-substrate generalization is *exactly* what bit us in 1.0-ext (§0.18; clause-b open).
   - **Retraction (primary, mode-agnostic):** `correct-use` rate is **flat** w.r.t. competition/fill → rot refuted.
   - **Failure-mode = characterization, not falsifier** (§0.17): mis-bind∈pool on the Claude anchor; possibly **abstention/re-fetch** on DeepSeek.
+  - **POSTERIOR 60 → 15 (2026-06-14, #4-v2; corrected after the three-reviewer pass; `experiments/phase-1.1/results-4v2.md`).** Retraction met across **all five designs at full seed-count** (correct-use flat, 0 mis-binds — *including* the low-disc design built to collapse). The pilot's lone seed-4 lure-capture (active=passive) was banked as "demonstrated ⊆ §1.8" but **did not replicate at 12 seeds** (§0.21; no temperature control) → **no agentic collapse induced** — a *third* inconclusive (chain null, binding A/B, diffuse), positive control never fired. So **#4 ⊆ §1.8 is a structural argument** (near-tautology, fetching ≠ wall-retrieval), **not a demonstration**. The **15** = low confidence in a *distinct* agentic rot mechanism beyond §1.8, resting on the §6 structural argument + three failures-to-induce + zero positive observations. (The genuinely-novel agentic question → RAG-vs-grep, later.)
 - **#4(ii) — lever ordering (return-shape > description at depth): prior 50; v1-PARTIAL.**
   - **v1 retraction (return-size half):** return-*size* pruning doesn't shift `correct-use` at depth → rot-lever in trouble.
   - **Full ordering (return-shape vs. description) → v2** (needs the deferred description-rewrite arm).
+  - **POSTERIOR: PARKED (2026-06-14).** Untestable as posed — the fix-lever needs a collapse to fix, and the only collapse (#4-v2 Design 5) was an *identification* failure (cue→item), not a value-*rendering* one. Revive only with a collapse in return-shape's domain.
 - **#6 — remove-the-format-choice: prior 45** (novel, zero prior evidence, genuine equipoise; contribution-worthy *because* uncertain).
   - **Retraction:** agent-enum (C) Pareto-beats always-attach (D) on success-vs-tokens; **or** handle-block overhead makes D lose to a fixed arm.
   - **Mechanism sub-claim:** C beats fixed arms only *above* a format-selection-accuracy threshold.
+  - **POSTERIOR 45 → 48 (2026-06-14; corrected after the three-reviewer pass; `experiments/phase-1.1/results-6.md`).** The original "remove the choice — it's unexploited overhead" claim was **falsified by the per-tool data**: all three models (v4-flash/v4-pro/Sonnet, 2 families) **do** use the choice, and *sensibly* — `concise` on the terminal `send_message` (return unused; v4-flash 10/15, Sonnet 3/3, v4-pro 2/3) and `detailed` on the consumed reads (`get_order`/`get_ticket`). The "detailed everywhere" tally only counted the read tools. So the choice is **not** unexploited. What survives is the **fixed-arm ranking**: A (inline-detailed) 100% at lowest (call-count-confounded) cost; D (handle-block) pure overhead; B (concise, handle pruned) → 0%. **Actionable finding: if you fix one return format, fix it to inline-detailed — NOT "don't offer a choice."** Only +3 off the prior: the intended discriminator (success) never fired *and* the behavioral pillar inverted → stays near equipoise pending an economy-pressure / call-count-controlled redesign.
 - **#3 — swap break-even (a crossover exists): prior 70** (near-arithmetic given the cost model + owned 7×, *minus* the DeepSeek-cache-unknown — the 10-pt haircut prices exactly its own retraction risk).
   - **Retraction:** the cache cost model doesn't hold on our substrate — mutating tools is **not** more expensive than carrying them, or carry-cost isn't ~fixed.
+  - **POSTERIOR 70 → 78 (2026-06-14; `experiments/phase-1.1/results-3.md`).** Predict→verify closed: a carry-vs-swap break-even **EXISTS**, KV-cache-governed. Step-1 smoke confirmed DeepSeek prefix-caches tool defs + mutation busts the suffix; (B) pre-registered N\* ≈ 5,111 tool-tokens from the cost model; (A) verified 6,461 (~26%; residual = swap floor +22% over nominal). Carry-cost linear in superset size, swap-cost flat — exactly the model. **Qualifies §1.1's cache leg** (don't-mutate is cheaper *only* while the universe is small). Existence + cost-model cross-provider; *location* provider/TTL-dependent (Claude anchor deferred — the 8-pt residual prices that single-provider-on-location gap + scripted-not-agentic).
+
+## Prior art + #4 contribution reframe (2026-06-12) — CONFIDENCES UNCHANGED
+
+Two refs surfaced (search/WebFetch only — **read the PDFs firsthand before the synthesis
+commits any claim**, §0.16; add both to the reviewer-pass prior-art set):
+- **Proactive-interference / working-memory limits in LLMs** (arXiv:2506.08184) — on
+  *current* models incl. **DeepSeek-V3**, Gemini-2.5, GPT-4.1: retrieval accuracy
+  **log-linear → 0** with **# tracked keys / updates** (an *item-count* axis); error mode =
+  **retrieve a prior interfering value**, shading into **fabrication + primacy** at high
+  interference; **independent of context length** (length p=0.886; Exp B holds length
+  constant); resilience scales with **model size**. This is essentially #4's core mechanism
+  *already documented in a static key-value setting*.
+- **τ-bench** (tool-agent customer-service — our domain): GPT-4o 61% pass@1 / pass^8<25%,
+  but **current leaders ~88%** (Step-3.5-Flash 0.882, GLM-4.7 0.874; o3 0.63) → compounding
+  **milder on frontier** than the GPT-4o figure, *but* v4-flash (small) sits below frontier
+  → more visible on our substrate.
+
+**Contribution reframe (RULER-style):** #4 can NOT claim the bare "items collapse retrieval"
+effect — log-linear decline, interfering-value error mode, items>length are all prior art.
+#4's defensible novelty narrows to: **agentic & self-generated** interference (the agent's
+*own* tool returns in a realistic task) + the **return-shape lever** (#4ii — pruning returns
+as the *fix*) + the **re-fetch-vs-mis-bind strategy contrast** + **cross-provider**.
+
+**Pre-registration refinement (sharper falsifier):** predict mis-bind-rate **log-linear** in
+competition-N, with an **error progression** (mis-bind-dominant at moderate competition →
+fabrication + primacy at high). Pre-commit to the *shape*, not just the direction.
+
+**Confidences: UNCHANGED — #4(i) stays 60.** The mechanism evidence is ~1 year old (May
+2025) — plausibly still correct, but **no confidence move until the PDFs are read firsthand
+and currency confirmed** (and the prior is pre-data regardless). Author judgment, per §0.16.
+
+**Substrate note:** size-resilience predicts v4-flash shows the effect *more*, the larger
+Claude anchor *less* → a built-in size contrast to report (with §0.8's magnitude caveat).
+
+## Loop & generator design (locked 2026-06-11)
+
+Extends the Phase 0.0 raw loop (`src/stance/loop.py`). **Core reframe: error philosophy
+inverts — 0.0 fails *loud* (crash on unknown-tool/exception/max_turns); 1.1 fails *as
+data*, because the failures ARE the measurement** (wrong-tool, runaway, recovery). Most
+of the below follows from that.
+
+### The loop — what Module 2 adds to the 0.0 cycle
+Reuse the 0.0 cycle (snapshot→call→append assistant `content`→stop-check→dispatch each
+`tool_use`→append results). Add:
+1. **Error-as-data dispatch** — unknown-tool / bad-args / tool-exception → structured `ToolResult`, never a raise.
+2. **Rich per-call event** (replaces token-only BudgetLogger) — incl. `usage` (`response.usage.input_tokens` *is* `context_size_at_call`/fill-at-use — exact, free).
+3. **Toggleable loop-guard** (below).
+4. **Crash-robust run record** — `try/finally` always writes `terminal_status`; `max_turns` is a *data point*, not `RuntimeError`.
+5. **Return** `{run_id, final_answer, terminal_status}`; trajectory lives in events.
+
+**Invariants:** well-formed conversation (every `tool_use`→matching `tool_result`, incl. error ones); append full `response.content` (incl. thinking); stable tool set (#1); exactly one event per loop turn; always a run record.
+
+### Error contract (decision #1)
+Uniform **`ToolResult`** from every dispatch, never raises — model-facing `{content, is_error}`, logging `{error_type, extracted_ids, response_format, size_tokens}`. Two layers:
+- **Universal (harness, pre-fn):** `unknown_tool` (was 0.0 KeyError → now data; catches hallucinated tools), `schema:{missing,type,enum,unknown_arg}` (jsonschema), `exception`.
+- **Tool-specific (fn):** `not_found` (catches fabrication ∉pool), `ambiguous`, `empty`, `out_of_range`, …
+
+Principles: loud→data everywhere; universal layer thin + low-rate, **kept as a control** ("structural ~0% → failures are semantic"); **no per-tool *structural* taxonomy**; **dangerous failures (mis-bind, wrong-value) deliberately NOT in the contract** → silent, scorer-caught (§3.8). Every error `message = render(error_type, details, terminal_style)`; **`terminal_style ∈ {crisp, soft}` is the terminal-state IV** (seam now, template content later).
+
+### Loop-guard policy (decision #2)
+- **Signature:** exact `(tool, normalized_args)` hash; variation-thrashing excluded from triggering (scorer flags descriptively).
+- **Trigger:** **K=2, whole-run** (deterministic tools → identical re-call always pointless).
+- **Action — warn-then-break:** 2nd occurrence → *don't re-run*; inject a **crisp corrective** (refs the prior result), continue (→ recovery signal); 3rd → break, `terminal_status="loop_guard"`.
+- Guard corrective is **always crisp, part of "guard on"** — OFF the `terminal_style` axis (clean 2×2). Guard OFF → agent loops to `max_turns` (raw redundant-call rate).
+- `terminal_status ∈ {complete, max_turns, loop_guard, crash, timeout}`.
+- **2×2** `{guard on/off} × {terminal crisp/soft}` tests structure(tool-message) vs harness-mechanism.
+- **Compaction-forward (deferred):** ledger carries a per-signature **visibility flag**; when compaction lands, *forgive* a repeat whose prior result was evicted (justified **re-fetch**, not a loop) → **splits `redundant_call_count` into true-loop vs justified-re-fetch** (a context-loss probe tying to #4). v1 (no compaction): all visible → whole-run K=2 unchanged. Study the guard tier *without* compaction first.
+
+### Loop decisions #3–5
+- **#3 `extracted_ids` = the *rendered* ids** the tool returns (format-aware — what the agent saw), NOT parsed from text (regex fragility → mis-bind misclassified as fabricate). Optional **test-time** cross-check (`extracted_ids ⊆ ids-in-content`).
+- **#4 arm threading** — per-run factory `make_tools(world, arm)`; **A/B/D** fixed format, no `response_format` param; **C** schema *has* the enum param. The schema difference **IS the treatment** (choice vs no-choice). Loop **arm-agnostic**; captures `response_format` (returned, all) + `format_requested` (C only).
+- **#5 raw/derived line** — loop logs **raw fact of what happened** (calls, args, `args_valid`, errors, `usage`, `extracted_ids`, `response_format`/`requested`, final answer, **and its own guard actions** — not re-derivable); scorer derives everything needing **ground-truth/aggregation**.
+
+### Completeness pass — every summary field derivable ✅
+Gated on **6 raw/config inputs:** (1) final-answer *text* recoverable via ref; (2) per-seed **needle id** resolvable; (3) `tool_expected` for selection tier; (4) **guard actions raw-logged**; (5) `extracted_ids` = rendered; (6) **expected end-state as predicates over `{events + final answer}`**. Two definitions pinned: `first_error_depth` (earliest `is_error`, else earliest checkable deviation, else None); `cascade` (early wrong value consumed by a later step's args + corrupted-consistent final answer).
+
+### Generator / task-config (decisions, locked)
+`generate(cell, seed) → (World, TaskInstance{prompt, dependency_edge, expected_writes, expected_tool?, ivs, seed})`, deterministic.
+
+**Core technique:** control via the **DATA the dependency-forced calls return**, NOT by scripting the agent — the dependency graph forces the chain; the generator controls those calls' returns (needle in producer's return; competitors+fill in intervening returns). Agent free *within* the forced path. §0.18: verify the chain was traversed (bin by *achieved*).
+
+1. **World granularity** — per-task-generated returns (controlled cells) + shared messy DB (realism leg).
+2. **Forcing** — **data-dependency-forced** chains (uncompletable except via the needle-threading path), not instruction-forced.
+3. **Difficulty knob** — **entity-reference clarity** (unique vs ambiguous target) as low/mid/high; competitor ids **same-format, distinct-value, collision-filtered** (Phase 1.0 `_gen_code`).
+4. **Transcript source** — templated/controlled-density v1 + LLM-pool realism leg (reuse `competitor_pool`).
+5. **Factoring** — shared **domain substrate** (`domain.py`: id/entity/transcript gen + `World`) + **per-tier builders** (`tasks/{chain,format,selection,loopguard}.py`) + uniform `TaskInstance`; `run_config` dispatches `cell.tier → builder`; loop/scorer tier-agnostic.
+
+**Verifiability — write-boundary predicates:** assert at **state-changing actions** (writes) with **correct consumed values + cardinality** (incl. negative assertions); leave the read path free. **Generator emits the predicates** (from the ground truth it created) → consistent **by construction**. **Constraint:** controlled cells = **action-completion tasks only** (no prose-quality → no LLM-judge variance); deliverable checks = id-token presence, not prose. Multi-step → one predicate per terminal write, **partial credit**; for #4 the load-bearing predicate = the **critical-step write** (= the `critical_outcome` check — success and #4 DV collapse into one assertion).
+
+**§0.18 mitigation:** **needle = opaque id** eliminates the synonym-bridging control-break that killed `clean_essay` (ids are exact/unique); difficulty knob is entity-disambiguation (clean), not lexical similarity (fraught). Still run each tier's zero-competition control first; confirm correct-use high before reading treatment.
 
 ## To finalize at Phase 1.1 entry (decisions deferred — mostly user-owned)
 
