@@ -141,6 +141,7 @@ At every phase-complete declaration, *before* merge to `main`, write a `/learn` 
 | `tasks/lessons.md` | Process stream — discipline journal |
 | `tasks/spend.md` | Compute spend tracking |
 | `tasks/contribution-candidates.md` | `[CANDIDATE-CONTRIBUTION]` notes for the Property-4 export pipeline |
+| `tasks/ingest-backlog.md` | `[INGEST]` position-relevant items found in the wild — **manual stand-in for Property 1** (stay-current ingest loop); drains into it when Phase 2.3 builds it |
 
 ## If Continuing After a Gap
 
