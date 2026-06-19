@@ -84,3 +84,27 @@
 - **Finding:** `Agentic_Engineering_Curriculum.md:120` cites survey **arXiv:2508.17692** (Zhao et al., *LLM-based Agentic Reasoning Frameworks: A Survey from Methods to Scenarios*, Aug 2025) **and** the `weitianxin/Awesome-Agentic-Reasoning` list. Verified firsthand: that list is actually the companion to a **newer** survey — **"Agentic Reasoning for Large Language Models," arXiv:2601.12538 (Jan 2026)** — which postdates the curriculum. Both surveys are real; the Jan-2026 one is the repo's actual basis and its taxonomy (foundational → self-evolving → collective reasoning) is directly on-point.
 - **Action:** prefer **arXiv:2601.12538** for Module 3 orientation; optionally refresh the curriculum's Module 3 resource line (the curriculum is the seed dataset, not gospel — keep it current as the field moves). The three seminal primaries (ReAct 2210.03629, Reflexion 2303.11366, ToT 2305.10601) + Plan-and-Solve 2305.04091 are all verified and unchanged.
 - **Anchors:** Module 3 / Phase 2.0 reasoning thread; the project's own stay-current ethos (this is a manual Property-1 hit on our *own* curriculum).
+
+---
+
+## [INGEST] LoopCoder-v2 / "loop transformers" — diminishing returns on recurrent DEPTH (≠ agentic loops)
+
+- **Found:** 2026-06-15 (user; infographic + arXiv). Type: **adjacency, LOW priority** — a *different sense of "loop."*
+- **Status:** OPEN — a cross-level echo for Phase 2.0 Thread B (reasoning-depth) + §2.3; **NOT load-bearing.**
+- **Disambiguation (load-bearing):** this is a **model-architecture** result — Parallel Loop Transformers refine hidden states over T *recurrent* loops (test-time-compute depth) — **NOT** the agentic control-loop discourse (loop-engineering / Opik / Agent-Loop-Architecture). Shared word, different layer; flagged precisely because the overlap invites conflation.
+- **Source (verified firsthand 2026-06-15):** **LoopCoder-v2: Only Loop Once for Efficient Test-Time Computation Scaling**, Yang et al., **arXiv:2606.18023** (Jun 2026). Finding: "two-loop variant delivers broad gains… 3+ loops regress… strongly **non-monotonic** loop-count effect"; mechanism = diminishing refinement + accumulating positional-mismatch (offset) cost. (The infographic's "2 loops enough" is the friendly summary; the paper title is "Only Loop Once.")
+- **Why it's (weakly) relevant:** the *more-depth → diminishing-gains, more-can-hurt* pattern at the ARCHITECTURE level rhymes with what Thread B tests at the AGENT level — does more reflection / ToT-depth / plan-revision help or *hurt*? A cross-level analogy + a §2.3 tokenmaxxing-skepticism data point. **Not evidence for our positions** (different mechanism/layer); cite only as an analogy *if* the agent-level result echoes it.
+
+---
+
+## [INGEST] Agent Loop Architecture — durable orchestration (loop / skill / orchestrator)
+
+- **Found:** 2026-06-15 (user; Inngest blog). **Source class: vendor/sponsored (Inngest) — lowest trust;** extract the pattern, discard the product (Inngest SDK / `step.run` / the utah repo).
+- **Status:** OPEN — Module 6B + Phase 2.4 + §2.3; **clusters with the loop-engineering + Opik entries.**
+- **One line:** the agentic loop's missing layer is **durability as the execution model** — *what runs the loop*, not the loop itself.
+- **Durable pattern (keep):** three layers — **loop** (cron + LLM-decision + durable steps) / **skill** (a durable, retryable, composable workflow — "the loop is plumbing, the asset is the skill") / **orchestrator** (schedules; step-level checkpoint + retry; **resume-from-last-step**; guaranteed event delivery; concurrency; hot-deploy; post-hoc observability). Plus the **self-building + self-reviewing agent**: a sidecar lets the agent author/deploy its own durable skills; a *cron review-loop* reads run-history → LLM → updates the skill (the hill-climbing machine). Step-level checkpointing is also a **token-cost saver** (don't re-run LLM calls on retry → ties §3.3).
+- **Verified firsthand (2026-06-15):** `github.com/inngest/utah` ("Universally Triggered Agent Harness," ~120★, Apache-2.0) — orchestration-aware sidecar, real. Nadella *"the moat isn't the model, it's the learning loop"* + human/token capital — real (MSFT essay). Van Horn / Osmani threads (Osmani verified earlier).
+- **Anchors:** **Module 6B** (durable coding-agent harness) · **Phase 2.4** (loops supervising loops; sub-agent lifecycle — durability is the infra answer) · **§2.3** (maximal Manus-school infrastructure) · **Modules 7–8** ("swap the model, keep the skills" = skills/memory persist across model swaps; the memory-vs-filesystem debate). **Self-relevance:** our harness already has proto-durability (loop-guard, `events.py` traces, crash-robust `RunRecord`); durable orchestration is the productionized version.
+- **What NOT to adopt:** the vendor framework (we write the load-bearing harness — learning-first); and the self-building-agent pattern is the **cognitive-surrender** tension again ("the agent authors it, you own it" only holds if you actually read/tend it).
+- **Testable hypotheses:** does step-level checkpointing measurably cut retry token-cost (§3.3)? does a cron review-loop measurably harden a skill over cycles (shared with the Opik hypothesis)?
+- **Cluster note:** loop-engineering + Opik + this = a coherent **"durable, self-improving agentic loop"** thread (Van Horn / Osmani / Nadella / Cherny cross-cite). Candidate Module-6B/§2.3 synthesis thread; also a standing learning-first tension.
