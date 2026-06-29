@@ -321,8 +321,9 @@ def seed_38(store: GraphStore) -> None:
             Retraction("down", 30, "a stronger model shows a LATER diffuse knee AND a lower "
                        "refusal rate (capability -> genuine robustness, not earlier honesty) — "
                        "inverts the claim", ("invert",)),
-            Retraction("down", 15, "the refuse-vs-confabulate split is an artifact of the explicit "
-                       "UNKNOWN affordance, not capability (vary the refusal affordance)",
+            Retraction("down", 20, "the refuse-vs-confabulate split is an artifact of the explicit "
+                       "UNKNOWN affordance, not capability (vary the refusal affordance) — kills "
+                       "the conflict-detector interpretation, the position's novel core",
                        ("affordance", "scope")),
             Retraction("up", 10, "a 3rd model on the ladder continues the monotone "
                        "more-capable->earlier-refusal trend AND the split survives removing the "
@@ -333,9 +334,10 @@ def seed_38(store: GraphStore) -> None:
     store.add(Support("3.8", "ev-exA-capability", polarity="supports",
                       warrant="knee ~4x earlier + the confabulate(Haiku)->refuse(Sonnet) split "
                               "across a capability step => capability shifts the failure mode"))
-    store.add(Support("3.8", "ev-deepseek-abstain", polarity="supports",
-                      warrant="a 3rd mode (abstention) on a cross-family model — suggestive, but "
-                              "confounded (capability x training), so does NOT advance the claim"))
+    store.add(Support("3.8", "ev-deepseek-abstain", polarity="inconclusive",
+                      warrant="a 3rd failure mode (abstention) on a cross-family model — related "
+                              "but confounded (capability x training), so neither confirms nor "
+                              "refutes; deconfounding it is a future probe"))
     store.add(Support("3.8", "ev-loops-to-oops", polarity="contradicts",
                       warrant="opposite scaling in the PARAMETRIC regime => §3.8 is a candidate "
                               "REGIME-DEPENDENT reversal (in-context, not parametric) => higher "

@@ -63,7 +63,7 @@ class Support:
     position_id: str
     evidence_id: str
     warrant: str
-    polarity: str  # supports | contradicts
+    polarity: str  # supports | contradicts | inconclusive (related but confounded/unresolved)
 
     def to_jsonl(self) -> str:
         return json.dumps(asdict(self), sort_keys=True)
