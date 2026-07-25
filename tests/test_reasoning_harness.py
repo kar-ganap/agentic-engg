@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from stance.reasoning.arms import Meter, baseline
+from stance.reasoning.arms import _REACT_MAX_TURNS, Meter, baseline, react
 from stance.reasoning.environment import EvidenceEnv
 from stance.reasoning.pool import EvidenceItem, Task
 from stance.reasoning.position import parse_formed_position
@@ -120,3 +120,59 @@ def test_baseline_arm() -> None:
     assert r.n_calls == 1 and r.n_reads == 0 and r.n_turns == 1  # stuff arm: no reads, single pass
     assert r.input_tokens == 120 and r.output_tokens == 40
     assert r.pool_id == "test" and r.n_distractors == 1 and r.confusability == "high"
+
+
+# ---- react loop (via a scripted fake that returns tool_use turns then a final answer) ----
+class _ToolUse:
+    def __init__(self, block_id: str, name: str, args: dict[str, Any]) -> None:
+        self.type = "tool_use"
+        self.id = block_id
+        self.name = name
+        self.input = args
+
+
+class _Scripted:
+    def __init__(self, content: list[Any], stop_reason: str) -> None:
+        self.content = content
+        self.stop_reason = stop_reason
+        self.usage = _Usage()
+
+
+class _ScriptedClient:
+    def __init__(self, responses: list[_Scripted]) -> None:
+        self._responses = responses
+        self._i = 0
+        self.meter = Meter()
+
+    def complete(self, *, system: str, messages: list[dict[str, Any]],
+                 tools: Any = None, max_tokens: int = 1024) -> _Scripted:
+        r = self._responses[self._i]
+        self._i += 1
+        self.meter.add(r.usage)
+        return r
+
+
+_FINAL = "STANCE: competition\nCONFIDENCE: 70\nRETRACTION: neutral knee\nEVIDENCE_USED: ev-t1"
+
+
+def test_react_reasons_acts_then_answers() -> None:
+    client = _ScriptedClient([
+        _Scripted([_ToolUse("t1", "list_evidence", {})], "tool_use"),          # ACT: list
+        _Scripted([_ToolUse("t2", "read_evidence", {"id": "ev-t1"})], "tool_use"),  # ACT: read
+        _Scripted([_Block(_FINAL)], "end_turn"),                                # REASON: answer
+    ])
+    r = react(_task(), client)
+    assert r.arm == "react"
+    assert r.position.confidence == 70
+    assert r.n_reads == 1            # read ev-t1 exactly once (the sidestep metric)
+    assert r.n_turns == 3 and r.n_calls == 3
+
+
+def test_react_forced_final_on_cap_exhaustion() -> None:
+    # never answers -> exhausts the cap -> one forced final call (no tools) still yields a position
+    loops = [_Scripted([_ToolUse("t", "list_evidence", {})], "tool_use")] * _REACT_MAX_TURNS
+    client = _ScriptedClient(loops + [_Scripted([_Block("STANCE: forced\nCONFIDENCE: 40")], "end")])
+    r = react(_task(), client)
+    assert r.position.stance == "forced"
+    assert r.n_turns == _REACT_MAX_TURNS + 1  # cap turns + the forced final
+    assert r.n_calls == _REACT_MAX_TURNS + 1

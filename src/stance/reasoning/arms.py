@@ -19,6 +19,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from stance.reasoning.environment import EvidenceEnv
 from stance.reasoning.pool import Task
 from stance.reasoning.position import POSITION_FORMAT, FormedPosition, parse_formed_position
 
@@ -114,6 +115,23 @@ def make_result(
     )
 
 
+def _force_final(
+    arm: str, task: Task, client: Client, messages: list[dict[str, Any]],
+    env: EvidenceEnv, n_turns: int, started: float,
+) -> ArmResult:
+    """Cap-exhaustion fallback for the retrieve arms: one final call with NO tools, forcing a
+    gradeable answer so a runaway still produces a (probably worse) position, not a crash."""
+    messages.append(
+        {"role": "user", "content": f"Stop gathering evidence and answer now.\n\n{POSITION_FORMAT}"}
+    )
+    resp = client.complete(system=SYSTEM, messages=messages, max_tokens=1024)  # no tools
+    position = parse_formed_position(_text(resp.content))
+    return make_result(
+        arm, task, position, client, n_reads=env.n_reads, n_turns=n_turns + 1,
+        latency_s=time.time() - started,
+    )
+
+
 def baseline(task: Task, client: Client) -> ArmResult:
     """STUFF + single-pass: the whole evidence set in one prompt, one call, parse. The template the
     three real arms extend — they change the reasoning structure, never the contract."""
@@ -129,13 +147,52 @@ def baseline(task: Task, client: Client) -> ArmResult:
     )
 
 
-# --- The three load-bearing arms (user-written). Signatures + specs fixed; bodies TBD. ----------
+# --- The three load-bearing arms (Module-3 loops). ---------------------------------------------
+_REACT_MAX_TURNS = 8  # legit depth = list once + a few reads + answer; a backstop, not a guard
+
+
 def react(task: Task, client: Client) -> ArmResult:
-    """RETRIEVE + adaptive. Build EvidenceEnv(task); give the model env.tool_specs(). Loop:
-    reason -> (maybe) call list_evidence / read_evidence via client.complete(tools=...) ->
-    env.dispatch -> feed the result back -> repeat; stop when the model answers in POSITION_FORMAT
-    (no tool_use). Bet: reads selectively, so n_reads < set size on large cells. TODO(user)."""
-    raise NotImplementedError("react: user-written (Module-3 loop)")
+    """RETRIEVE + adaptive. ReAct = Reason and Act *interleaved* — each reason step sees the latest
+    observation, so the model adapts turn to turn (vs plan-execute's commit-upfront). Bet: reads
+    selectively, so n_reads < set size on large/confusable cells (sidesteps the §1.8 rot)."""
+    started = time.time()
+    env = EvidenceEnv(task)
+    prompt = (
+        f"DEBATE: {task.debate}\n\n"
+        "The evidence is available through the list_evidence and read_evidence tools. "
+        "Gather what you need, then answer.\n\n"
+        f"{POSITION_FORMAT}"
+    )
+    messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
+    n_turns = 0
+
+    for _ in range(_REACT_MAX_TURNS):
+        # ---- REASON: weigh the conversation so far (incl. prior observations); decide next move.
+        resp = client.complete(
+            system=SYSTEM, messages=messages, tools=env.tool_specs(), max_tokens=1024
+        )
+        n_turns += 1
+        messages.append({"role": "assistant", "content": resp.content})
+
+        if resp.stop_reason != "tool_use":  # chose to ANSWER — reasoning concluded
+            position = parse_formed_position(_text(resp.content))
+            return make_result(
+                "react", task, position, client, n_reads=env.n_reads, n_turns=n_turns,
+                latency_s=time.time() - started,
+            )
+
+        # ---- ACT: run each requested tool; OBSERVE = feed results back for the next reason step
+        #      (this feedback is what makes ReAct *interleaved* rather than a one-shot plan).
+        results: list[dict[str, Any]] = []
+        for block in resp.content:
+            if getattr(block, "type", None) == "tool_use":
+                observation = env.dispatch(block.name, dict(block.input))  # ACT
+                results.append(
+                    {"type": "tool_result", "tool_use_id": block.id, "content": observation}
+                )
+        messages.append({"role": "user", "content": results})  # OBSERVE
+
+    return _force_final("react", task, client, messages, env, n_turns, started)
 
 
 def plan_execute(task: Task, client: Client) -> ArmResult:
@@ -152,5 +209,5 @@ def reflection(task: Task, client: Client) -> ArmResult:
     raise NotImplementedError("reflection: user-written (Module-3 loop)")
 
 
-# The registry the runner iterates; the user arms join here as they land.
-ARMS: dict[str, Arm] = {"baseline": baseline}
+# The registry the runner iterates; the remaining arms join here as they land.
+ARMS: dict[str, Arm] = {"baseline": baseline, "react": react}
