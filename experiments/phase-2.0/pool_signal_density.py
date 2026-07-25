@@ -40,13 +40,23 @@ DISTRACTORS: tuple[Distractor, ...] = (
     # ---- HIGH: orthogonal rival mechanisms (axis ⟂ competition-vs-length) ----
     Distractor(
         "d-pos-1", "position", "high", "synthetic",
-        "In long inputs, retrieval accuracy depends sharply on WHERE the relevant span sits: items "
-        "in the middle are recovered far worse than those near the start or the end.",
+        "Retrieval accuracy depends sharply on WHERE the relevant span sits: items in the {region} "
+        "are recovered {degree} worse than items at the {edge}.",
+        slots={
+            "region": ("exact middle", "second quarter", "third quarter"),
+            "degree": ("far", "substantially", "measurably"),
+            "edge": ("very start", "very end"),
+        },  # 3x3x2 = 18 variants, all on the position axis (⟂ competition-vs-length)
     ),
     Distractor(
         "d-form-1", "form", "high", "synthetic",
-        "Re-serializing the same passage — chunk boundaries, whitespace, JSON-vs-prose framing — "
-        "shifts long-context retrieval scores by double digits.",
+        "Re-serializing the same passage — {factor} — shifts long-context retrieval scores by "
+        "{magnitude}.",
+        slots={
+            "factor": ("chunk boundaries", "whitespace and indentation", "JSON-vs-prose framing",
+                       "delimiter choice", "heading structure"),
+            "magnitude": ("double digits", "a wide margin", "several points"),
+        },  # 5x3 = 15 variants, all on the form axis
     ),
     Distractor(
         "d-sink-1", "attention-sink", "high", "real",  # Xiao 2023, arXiv:2309.17453 (verified)
@@ -55,8 +65,13 @@ DISTRACTORS: tuple[Distractor, ...] = (
     ),
     Distractor(
         "d-hop-1", "reasoning-depth", "high", "synthetic",
-        "Holding context length fixed, tasks that require chaining several facts (multi-hop) "
-        "degrade sharply, while single-hop lookups over the same context stay accurate.",
+        "At fixed context length, tasks requiring {depth} degrade sharply, while {shallow} over "
+        "the same context stay accurate.",
+        slots={
+            "depth": ("chaining several facts (multi-hop)", "three or more reasoning hops",
+                      "combining evidence across sections"),
+            "shallow": ("single-hop lookups", "direct retrieval", "single-fact questions"),
+        },  # 3x3 = 9 variants, all on the reasoning-depth axis
     ),
     # ---- MID: same topic, WRONG QUESTION TYPE (measurement / construction), non-decisive
     Distractor(
