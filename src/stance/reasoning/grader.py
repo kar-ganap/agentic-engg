@@ -15,6 +15,7 @@ from typing import Any
 
 from stance.reasoning.arms import ArmResult, Client
 from stance.reasoning.pool import Task
+from stance.reasoning.position import LABEL_LINE_RE
 
 CRITERIA = ("stance_correctness", "calibration", "retraction", "evidence_use", "epistemic_humility")
 
@@ -79,14 +80,14 @@ def _parse_grade(text: str) -> GradeResult:
     rationale: list[str] = []
     in_rationale = False
     for line in text.splitlines():
-        m = re.match(r"\s*([A-Z_]+)\s*:(.*)", line)
+        m = LABEL_LINE_RE.match(line)
         if m and (lbl := m.group(1)) in _LABELS:
             scores[_LABELS[lbl]] = _parse_score(m.group(2))
             in_rationale = False
         elif m and m.group(1) == "RATIONALE":
             in_rationale = True
-            if m.group(2).strip():
-                rationale.append(m.group(2).strip())
+            if rest := m.group(2).strip(" *"):
+                rationale.append(rest)
         elif in_rationale:
             rationale.append(line.strip())
     return GradeResult(scores=scores, rationale=" ".join(rationale).strip(), raw=text)

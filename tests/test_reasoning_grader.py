@@ -101,6 +101,17 @@ def test_grade_clamps_out_of_range_and_flags_missing() -> None:
     assert not g.parsed_ok
 
 
+def test_grade_tolerates_markdown_scores() -> None:
+    # Sonnet bolds the grade labels despite the format instruction (smoke 2026-07-25)
+    canned = (
+        "**STANCE_CORRECTNESS:** 4\n**CALIBRATION:** 3\n**RETRACTION:** 4\n"
+        "**EVIDENCE_USE:** 3\n**EPISTEMIC_HUMILITY:** 2\n**RATIONALE:** solid"
+    )
+    g = grade(_task(), _result(), _FakeJudge(canned))
+    assert g.total == 16 and g.parsed_ok
+    assert g.rationale == "solid"
+
+
 def test_judge_sees_the_key_and_labeled_evidence() -> None:
     j = _FakeJudge(_FIVE)
     grade(_task(), _result(), j)

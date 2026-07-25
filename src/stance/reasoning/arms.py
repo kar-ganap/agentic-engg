@@ -29,6 +29,11 @@ SYSTEM = (
     "Give a calibrated confidence and a falsifiable retraction condition."
 )  # neutral by design: no distractor pre-warning (else the §1.8 rot can't be induced — the #4 trap)
 
+# Uniform, generous cap: DeepSeek v4 spends reasoning tokens before the visible answer, so 1024
+# truncated react mid-analysis before it reached STANCE (smoke 2026-07-25). A cap costs nothing
+# unless used; keeping it uniform across arms preserves the control.
+_MAX_TOKENS = 2048
+
 
 @dataclass
 class Meter:
@@ -131,7 +136,7 @@ def _force_final(
     messages.append(
         {"role": "user", "content": f"Stop gathering evidence and answer now.\n\n{POSITION_FORMAT}"}
     )
-    resp = client.complete(system=SYSTEM, messages=messages, max_tokens=1024)  # no tools
+    resp = client.complete(system=SYSTEM, messages=messages, max_tokens=_MAX_TOKENS)  # no tools
     position = parse_formed_position(_text(resp.content))
     return make_result(
         arm, task, position, client, n_reads=env.n_reads, n_turns=n_turns + 1,
@@ -146,7 +151,7 @@ def baseline(task: Task, client: Client) -> ArmResult:
     resp = client.complete(
         system=SYSTEM,
         messages=[{"role": "user", "content": render_stuffed(task)}],
-        max_tokens=1024,
+        max_tokens=_MAX_TOKENS,
     )
     position = parse_formed_position(_text(resp.content))
     return make_result(
@@ -176,7 +181,7 @@ def react(task: Task, client: Client) -> ArmResult:
     for _ in range(_REACT_MAX_TURNS):
         # ---- REASON: weigh the conversation so far (incl. prior observations); decide next move.
         resp = client.complete(
-            system=SYSTEM, messages=messages, tools=env.tool_specs(), max_tokens=1024
+            system=SYSTEM, messages=messages, tools=env.tool_specs(), max_tokens=_MAX_TOKENS
         )
         n_turns += 1
         messages.append({"role": "assistant", "content": resp.content})
@@ -222,7 +227,8 @@ def plan_execute(task: Task, client: Client) -> ArmResult:
     )
     plan = _text(
         client.complete(
-            system=SYSTEM, messages=[{"role": "user", "content": plan_prompt}], max_tokens=512
+            system=SYSTEM, messages=[{"role": "user", "content": plan_prompt}],
+            max_tokens=_MAX_TOKENS,
         ).content
     )
 
@@ -241,7 +247,7 @@ def plan_execute(task: Task, client: Client) -> ArmResult:
         _text(
             client.complete(
                 system=SYSTEM, messages=[{"role": "user", "content": answer_prompt}],
-                max_tokens=1024,
+                max_tokens=_MAX_TOKENS,
             ).content
         )
     )
@@ -264,7 +270,7 @@ def reflection(task: Task, client: Client) -> ArmResult:
     draft = _text(
         client.complete(
             system=SYSTEM, messages=[{"role": "user", "content": render_stuffed(task)}],
-            max_tokens=1024,
+            max_tokens=_MAX_TOKENS,
         ).content
     )
 
@@ -276,7 +282,8 @@ def reflection(task: Task, client: Client) -> ArmResult:
     )
     critique = _text(
         client.complete(
-            system=SYSTEM, messages=[{"role": "user", "content": critique_prompt}], max_tokens=512
+            system=SYSTEM, messages=[{"role": "user", "content": critique_prompt}],
+            max_tokens=_MAX_TOKENS,
         ).content
     )
 
@@ -289,7 +296,7 @@ def reflection(task: Task, client: Client) -> ArmResult:
         _text(
             client.complete(
                 system=SYSTEM, messages=[{"role": "user", "content": revise_prompt}],
-                max_tokens=1024,
+                max_tokens=_MAX_TOKENS,
             ).content
         )
     )

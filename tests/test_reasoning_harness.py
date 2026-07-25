@@ -64,6 +64,20 @@ def test_parse_confidence_out_of_range_or_missing() -> None:
     assert parse_formed_position("STANCE: x").confidence == -1  # missing
 
 
+def test_parse_tolerates_markdown_labels() -> None:
+    # the real DeepSeek react output: bolded labels despite "no markdown" (smoke 2026-07-25)
+    fp = parse_formed_position(
+        "**STANCE:** competition drives it\n\n"
+        "**CONFIDENCE:** 92\n\n"
+        "**RETRACTION:** a neutral knee below a diffuse knee\n\n"
+        "**EVIDENCE_USED:** ev-ruler, d-form-1"
+    )
+    assert fp.stance == "competition drives it"       # leading ** stripped
+    assert fp.confidence == 92
+    assert fp.retraction == "a neutral knee below a diffuse knee"
+    assert fp.evidence_used == ("ev-ruler", "d-form-1")  # ** not captured as a ref
+
+
 # ---- retrieval environment ----
 def test_env_list_read_and_reads_metric() -> None:
     env = EvidenceEnv(_task())
