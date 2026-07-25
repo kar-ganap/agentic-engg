@@ -19,6 +19,11 @@ from stance.reasoning.position import LABEL_LINE_RE
 
 CRITERIA = ("stance_correctness", "calibration", "retraction", "evidence_use", "epistemic_humility")
 
+# Generous cap: Sonnet 5 spends reasoning tokens before the visible scores, so 512 truncated the
+# grade mid-EVIDENCE_USE (pilot: 8/8 parse-fails hit exactly 512). The visible output is tiny; the
+# headroom is for the model's reasoning.
+_GRADE_MAX_TOKENS = 2048
+
 _LABELS = {  # judge-output label -> criterion key
     "STANCE_CORRECTNESS": "stance_correctness",
     "CALIBRATION": "calibration",
@@ -114,6 +119,6 @@ def grade(task: Task, result: ArmResult, judge: Client) -> GradeResult:
     resp = judge.complete(
         system=JUDGE_SYSTEM,
         messages=[{"role": "user", "content": _grade_prompt(task, result)}],
-        max_tokens=512,
+        max_tokens=_GRADE_MAX_TOKENS,
     )
     return _parse_grade(_text(resp.content))

@@ -59,6 +59,7 @@ def row(pid: str, arm: str, size: int, conf: str, seed: int,
         "judge_input_tokens": judge_meter.input_tokens,
         "judge_output_tokens": judge_meter.output_tokens,
         "grade_total": gr.total, "grade_parsed_ok": gr.parsed_ok, "grade_rationale": gr.rationale,
+        "judge_raw": gr.raw,  # full judge output, for audit
         **{f"grade_{k}": v for k, v in gr.scores.items()},
     }
 
