@@ -9,7 +9,7 @@ position-forming loop then reasons over.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -19,6 +19,10 @@ class Distractor:
     confusability: str  # high | mid
     realism: str        # synthetic | real (verify §0.16 before use)
     text: str           # the evidence-like claim: same topic, non-decisive
+    # Optional {slot} template values. Empty -> a singleton (real anchors stay singletons).
+    # Non-empty -> `text` is a template the multiplier fills into similar-but-distinct variants
+    # (diffuse competition). Slot keys must match the {placeholders} in `text`.
+    slots: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

@@ -7,7 +7,7 @@ import pytest
 from stance.graph.models import Evidence
 from stance.graph.store import Graph
 from stance.reasoning.pool import Distractor, Pool
-from stance.reasoning.sampler import build_task
+from stance.reasoning.sampler import _expand, build_task
 
 
 def _graph() -> Graph:
@@ -66,8 +66,41 @@ def test_deterministic_by_seed() -> None:
 
 
 def test_oversize_raises_pointing_at_multiplier() -> None:
-    with pytest.raises(ValueError, match="multiplier"):  # only 3 high distractors authored
+    with pytest.raises(ValueError, match="multiplier"):  # only 3 high singletons -> 3 variants
         build_task(_pool(), _graph(), n_distractors=5, confusability="high", seed=1)
+
+
+# ---- the multiplier: slotted templates -> similar-but-distinct variants ----
+def test_expand_singleton_is_identity() -> None:
+    single = Distractor("s", "ax", "high", "synthetic", "plain text")
+    assert _expand(single) == [single]
+
+
+def test_expand_slotted_template_to_variants() -> None:
+    tmpl = Distractor(
+        "t", "ax", "high", "synthetic", "in {size} inputs, the {region} recovers worse",
+        slots={"size": ("50k", "200k"), "region": ("middle", "tail")},
+    )
+    vs = _expand(tmpl)
+    assert len(vs) == 4  # 2 x 2 combinations
+    assert {v.id for v in vs} == {"t#0", "t#1", "t#2", "t#3"}  # unique ids
+    texts = {v.text for v in vs}
+    assert "in 50k inputs, the middle recovers worse" in texts
+    assert "in 200k inputs, the tail recovers worse" in texts
+    assert all(v.axis == "ax" and v.confusability == "high" for v in vs)  # inherits axis/tier
+
+
+def test_build_task_reaches_large_n_via_multiplier() -> None:
+    # ONE authored template, 6 combos -> can sample 5 distractors (impossible pre-multiplier)
+    pool = Pool(
+        "p", "d?", "yes", ("ev-t1",),
+        (Distractor("t", "ax", "high", "synthetic", "{a}/{b}",
+                    slots={"a": ("1", "2", "3"), "b": ("x", "y")}),),
+    )
+    t = build_task(pool, _graph(), n_distractors=5, confusability="high", seed=1)
+    d = [e for e in t.evidence if e.kind == "distractor"]
+    assert len(d) == 5
+    assert len({e.ref for e in d}) == 5  # 5 distinct variants of the one template
 
 
 def test_missing_target_raises() -> None:
