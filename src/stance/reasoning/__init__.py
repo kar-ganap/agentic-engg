@@ -4,7 +4,26 @@ Pools (debate + graph-targets + distractors) live in experiments/phase-2.0/pool_
 turns a Pool + the graph into a materialized Task at a chosen size x confusability.
 """
 
+from stance.reasoning.arms import ARMS, Arm, ArmResult, Client, Meter, baseline, render_stuffed
+from stance.reasoning.environment import EvidenceEnv
 from stance.reasoning.pool import Distractor, EvidenceItem, Pool, Task
+from stance.reasoning.position import FormedPosition, parse_formed_position
 from stance.reasoning.sampler import build_task
 
-__all__ = ["Distractor", "EvidenceItem", "Pool", "Task", "build_task"]
+__all__ = [
+    "ARMS",
+    "Arm",
+    "ArmResult",
+    "Client",
+    "Distractor",
+    "EvidenceEnv",
+    "EvidenceItem",
+    "FormedPosition",
+    "Meter",
+    "Pool",
+    "Task",
+    "baseline",
+    "build_task",
+    "parse_formed_position",
+    "render_stuffed",
+]
