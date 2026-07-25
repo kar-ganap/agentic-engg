@@ -14,6 +14,7 @@ client is wired in the runner (experiments/), and fakes satisfy it in tests.
 
 from __future__ import annotations
 
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -196,10 +197,52 @@ def react(task: Task, client: Client) -> ArmResult:
 
 
 def plan_execute(task: Task, client: Client) -> ArmResult:
-    """RETRIEVE + plan-first. Call 1: a short plan (which evidence to examine, what to check).
-    Then execute (read via EvidenceEnv) -> emit POSITION_FORMAT. Bet: lookahead earns its keep only
-    on large sets; ties or trails ReAct on small/known ones. TODO(user)."""
-    raise NotImplementedError("plan_execute: user-written (Module-3 loop)")
+    """RETRIEVE + plan-first (plan-and-execute). ALL reasoning about what to read happens up front
+    (the plan, from teasers only); the reads are then FROZEN and batch-executed by the harness (P1)
+    -> the model never sees a read before committing the next. That structural non-adaptivity is the
+    lookahead-vs-adaptivity contrast the ranking leg tests. Bet: it earns its keep only on large
+    sets; ties or trails react on small/known ones."""
+    started = time.time()
+    env = EvidenceEnv(task)
+    refs = [e.ref for e in task.evidence]
+
+    # ---- REASON (plan): decide ALL reads up front, from the teasers only ----
+    plan_prompt = (
+        f"DEBATE: {task.debate}\n\n"
+        f"Available evidence:\n{env.list_evidence()}\n\n"
+        "Write a short PLAN: list the evidence ids you will read (from the list above) and what "
+        "you will check in each. You will then read exactly those and answer — you cannot revise "
+        "the plan after seeing them."
+    )
+    plan = _text(
+        client.complete(
+            system=SYSTEM, messages=[{"role": "user", "content": plan_prompt}], max_tokens=512
+        ).content
+    )
+
+    # ---- ACT (execute): batch-read the ids the plan named (frozen — no adaptation). ----
+    named = set(re.findall(r"[a-zA-Z0-9-]+", plan))  # whole tokens -> no substring false-positives
+    planned = [ref for ref in refs if ref in named] or refs  # failed plan -> read all (gradeable)
+    read = [f"- [{ref}] {env.read_evidence(ref)}" for ref in planned]
+
+    # ---- REASON (answer): sees everything it planned to read, together. ----
+    answer_prompt = (
+        f"DEBATE: {task.debate}\n\n"
+        f"YOUR PLAN:\n{plan}\n\n"
+        f"EVIDENCE YOU READ:\n" + "\n".join(read) + f"\n\n{POSITION_FORMAT}"
+    )
+    position = parse_formed_position(
+        _text(
+            client.complete(
+                system=SYSTEM, messages=[{"role": "user", "content": answer_prompt}],
+                max_tokens=1024,
+            ).content
+        )
+    )
+    return make_result(
+        "plan_execute", task, position, client, n_reads=env.n_reads, n_turns=2,
+        latency_s=time.time() - started,
+    )
 
 
 def reflection(task: Task, client: Client) -> ArmResult:
@@ -210,4 +253,4 @@ def reflection(task: Task, client: Client) -> ArmResult:
 
 
 # The registry the runner iterates; the remaining arms join here as they land.
-ARMS: dict[str, Arm] = {"baseline": baseline, "react": react}
+ARMS: dict[str, Arm] = {"baseline": baseline, "react": react, "plan_execute": plan_execute}

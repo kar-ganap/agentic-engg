@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from stance.reasoning.arms import _REACT_MAX_TURNS, Meter, baseline, react
+from stance.reasoning.arms import _REACT_MAX_TURNS, Meter, baseline, plan_execute, react
 from stance.reasoning.environment import EvidenceEnv
 from stance.reasoning.pool import EvidenceItem, Task
 from stance.reasoning.position import parse_formed_position
@@ -176,3 +176,25 @@ def test_react_forced_final_on_cap_exhaustion() -> None:
     assert r.position.stance == "forced"
     assert r.n_turns == _REACT_MAX_TURNS + 1  # cap turns + the forced final
     assert r.n_calls == _REACT_MAX_TURNS + 1
+
+
+# ---- plan_execute (plan names the reads up front; harness batch-reads them; no adaptation) ----
+def test_plan_execute_reads_only_the_committed_subset() -> None:
+    client = _ScriptedClient([
+        _Scripted([_Block("PLAN: read ev-t1 to check the claim.")], "end_turn"),  # names ev-t1 only
+        _Scripted([_Block(_FINAL)], "end_turn"),                                  # answer
+    ])
+    r = plan_execute(_task(), client)
+    assert r.arm == "plan_execute"
+    assert r.n_turns == 2                 # plan + answer (batch-reads are not model calls)
+    assert r.n_reads == 1                 # ONLY ev-t1 — the distractor d-1 was not in the plan
+    assert r.position.confidence == 70
+
+
+def test_plan_execute_fallback_reads_all_when_plan_names_no_id() -> None:
+    client = _ScriptedClient([
+        _Scripted([_Block("PLAN: I'll weigh the evidence carefully.")], "end_turn"),  # names no id
+        _Scripted([_Block(_FINAL)], "end_turn"),
+    ])
+    r = plan_execute(_task(), client)
+    assert r.n_reads == 2  # fallback: read all (ev-t1 + d-1), still gradeable
