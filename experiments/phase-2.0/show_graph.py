@@ -34,7 +34,8 @@ def detail(g: Graph, pid: str) -> None:
     print(f"POSITION {p.id}  \"{p.title}\"")
     print(f"  status={p.status}  confidence={p.confidence}  "
           f"(trajectory {[v.confidence for v in g.position_history(pid)]})")
-    print(f"  registered {p.registered}  updated {p.updated}  synthesis_ref §{p.synthesis_ref}")
+    ref = f"§{p.synthesis_ref}" if p.synthesis_ref else "(no synthesis section)"
+    print(f"  registered {p.registered}  updated {p.updated}  synthesis_ref {ref}")
     print(f"  stance: {p.stance}")
     if p.legs:
         print("  legs:")
