@@ -14,17 +14,7 @@ the task's ambiguity or its UNKNOWN instruction could fire is a rival explanatio
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class Distractor:
-    id: str
-    axis: str           # safety-refusal|sycophancy|prompt-injection|benchmark|mitigation
-    confusability: str  # high | mid
-    realism: str        # synthetic | real (verify §0.16 before use)
-    text: str
-
+from stance.reasoning.pool import Distractor, Pool
 
 DEBATE = (
     "Under diffuse competition, does higher model capability shift the failure mode "
@@ -93,4 +83,12 @@ NEAR_MISSES_EXCLUDED = (
     "abstention-training (rival refusal cause)",
     "capability->robustness (same axis, opposite = the retraction trigger)",
     "parametric-hallucination-scaling (= ev-loops-to-oops, a target)",
+)
+
+POOL = Pool(
+    id="capability-failuremode",
+    debate=DEBATE,
+    correct_position=CORRECT_POSITION,
+    target_ids=TARGET_EVIDENCE_IDS,
+    distractors=DISTRACTORS,
 )

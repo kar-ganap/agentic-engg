@@ -17,17 +17,7 @@ AUTHORING RED LINE (§0.22), learned while writing these — subtler than it loo
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class Distractor:
-    id: str
-    axis: str           # position | form | systems | attention-sink | benchmark | architecture
-    confusability: str  # high | mid
-    realism: str        # synthetic | real (verify §0.16 before use)
-    text: str           # the evidence-like claim: same topic, non-decisive, no lexical give-away
-
+from stance.reasoning.pool import Distractor, Pool
 
 DEBATE = (
     "Under long context, does signal-density / competition — not raw token length — drive the "
@@ -93,4 +83,12 @@ DISTRACTORS: tuple[Distractor, ...] = (
 NEAR_MISSES_EXCLUDED = (
     "length-alone (decisive)", "RoPE-extrapolation (length-axis)", "RAG (echoes primary)",
     "systems/KV-eviction (length-correlated)",
+)
+
+POOL = Pool(
+    id="signal-density",
+    debate=DEBATE,
+    correct_position=CORRECT_POSITION,
+    target_ids=TARGET_EVIDENCE_IDS,
+    distractors=DISTRACTORS,
 )

@@ -10,17 +10,7 @@ when the builder lands.)
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class Distractor:
-    id: str
-    axis: str           # description|return-format|error-handling|parallelism|benchmark|framework
-    confusability: str  # high | mid
-    realism: str        # synthetic | real (verify §0.16 before use)
-    text: str
-
+from stance.reasoning.pool import Distractor, Pool
 
 DEBATE = "Should tool definitions be stable across a run — i.e., never mutated mid-loop?"
 
@@ -85,4 +75,12 @@ NEAR_MISSES_EXCLUDED = (
     "prune-mid-run (advocates mutation)",
     "stale-refs-harmless (contradict)",
     "prompt-caching-mechanics (supports)",
+)
+
+POOL = Pool(
+    id="tool-stability",
+    debate=DEBATE,
+    correct_position=CORRECT_POSITION,
+    target_ids=TARGET_EVIDENCE_IDS,
+    distractors=DISTRACTORS,
 )
