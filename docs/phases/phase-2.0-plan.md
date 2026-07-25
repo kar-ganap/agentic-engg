@@ -162,6 +162,33 @@ unknown primitive is being missed. Carried items:
 **Files:** `src/stance/reasoning/` (loop variants + shared suite runner); `experiments/phase-2.0/`
 (runner, safe-by-default `--go`; `results-reasoning.md`).
 
+### Evidence-set / distractor design (co-designed 2026-07-25; the primary's crux)
+
+A position-forming task = **DEBATE + evidence set**; the set = **targets** (the graph's real evidence,
+which fix a gradeable correct position) + **distractors** (same-topic, NON-decisive). Two knobs:
+**size** (distractor count) and **confusability**. Framing is **hybrid**: base tasks are Type-B
+(realistic, size-swept, quality-graded — the pragmatic answer); ≥1 Type-A **confusable** cell gives
+the §1.8 bonus a chance to fire.
+
+**The confusability criterion (`where ⟂ what`):**
+- **HIGH** = an *orthogonal rival mechanism* — a competing "why long-context fails" claim whose axis
+  is orthogonal to the target's question (competition-vs-length). Position (*where*), input-form
+  (*serialization*), systems (*KV/quant*), attention-allocation (*sinks*) are all rival mechanisms on
+  axes ⟂ "what drives it" — maximally confusable yet **non-decisive**.
+- **MID** = same topic, **wrong question *type*** (measurement/benchmarks, construction/architecture,
+  mitigation/RAG) — the type-mismatch is an easier tell.
+- **Red line (§0.22):** a distractor must assert its own mechanism and stay **silent on
+  competition-vs-length** — the instant it *denies* competition ("…regardless of content mix") it
+  makes a claim on our axis → **decisive** → breaks grading. *Silent, not opposed.*
+- **Traps that look like HIGH distractors but aren't:** "length alone collapses retrieval" (same axis,
+  opposite → decisive); "RoPE fails to extrapolate" (length-side mechanism, not orthogonal); "RAG
+  beats stuffing" (echoes our *primary prediction* → confound).
+
+**Records:** mostly **synthetic** (dial size + surface-similarity — the sweep the interaction needs)
++ a couple **real** anchors (authenticity; verified §0.16). Having both is a mini realism-robustness
+check (cf. §1.8's templated-vs-natural potency finding). Content is **user-owned** (the scientific
+choice); the builder is scaffolded around it. Worked example: `experiments/phase-2.0/pool_signal_density.py`.
+
 ## Pre-registration (Substrate Discipline #1 — before running)
 
 - Pre-register the **prior position** on "which reasoning pattern for position-forming tasks, and
