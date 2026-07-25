@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from stance.reasoning.arms import _REACT_MAX_TURNS, Meter, baseline, plan_execute, react
+from stance.reasoning.arms import (
+    _REACT_MAX_TURNS,
+    Meter,
+    baseline,
+    plan_execute,
+    react,
+    reflection,
+)
 from stance.reasoning.environment import EvidenceEnv
 from stance.reasoning.pool import EvidenceItem, Task
 from stance.reasoning.position import parse_formed_position
@@ -198,3 +205,16 @@ def test_plan_execute_fallback_reads_all_when_plan_names_no_id() -> None:
     ])
     r = plan_execute(_task(), client)
     assert r.n_reads == 2  # fallback: read all (ev-t1 + d-1), still gradeable
+
+
+# ---- reflection: draft -> generic critique -> revise; returns the REVISED position, not the draft
+def test_reflection_returns_revised_not_draft() -> None:
+    client = _ScriptedClient([
+        _Scripted([_Block("STANCE: draft take\nCONFIDENCE: 60")], "end_turn"),   # draft
+        _Scripted([_Block("You overweighted the distractor.")], "end_turn"),      # critique
+        _Scripted([_Block(_FINAL)], "end_turn"),                                  # revise -> final
+    ])
+    r = reflection(_task(), client)
+    assert r.arm == "reflection"
+    assert r.n_turns == 3 and r.n_reads == 0            # stuff arm: 3 passes, no reads
+    assert r.position.confidence == 70                  # the REVISED value (70), not the draft's 60

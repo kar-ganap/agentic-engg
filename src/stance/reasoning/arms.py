@@ -93,12 +93,18 @@ def _text(content: list[Any]) -> str:
     return "".join(getattr(b, "text", "") for b in content if getattr(b, "type", None) == "text")
 
 
-def render_stuffed(task: Task) -> str:
-    """The STUFF prompt: debate + the full evidence set inline (baseline & reflection)."""
+def _evidence_block(task: Task) -> str:
+    """Debate + the full evidence set inline, WITHOUT the format instruction (so critique/revise
+    passes can reuse the context without being told to emit a position)."""
     lines = [f"DEBATE: {task.debate}", "", "EVIDENCE:"]
     lines += [f"- [{e.ref}] {e.text}" for e in task.evidence]
-    lines += ["", POSITION_FORMAT]
     return "\n".join(lines)
+
+
+def render_stuffed(task: Task) -> str:
+    """The STUFF prompt: debate + the full evidence set inline + the output contract (baseline's
+    single call, and reflection's draft)."""
+    return f"{_evidence_block(task)}\n\n{POSITION_FORMAT}"
 
 
 def make_result(
@@ -246,11 +252,57 @@ def plan_execute(task: Task, client: Client) -> ArmResult:
 
 
 def reflection(task: Task, client: Client) -> ArmResult:
-    """STUFF + iterative. Draft (render_stuffed) -> self-critique against the rubric dimensions ->
-    revise -> final POSITION_FORMAT. Bet: lift < its HumanEval reputation because our feedback is a
-    fuzzy rubric, not crisp pass/fail (self-review-on-noise risk). TODO(user)."""
-    raise NotImplementedError("reflection: user-written (Module-3 loop)")
+    """STUFF + iterative (draft -> generic self-critique -> revise; one round). The draft is
+    baseline's exact call, so the DV isolates the critique->revise loop. The critique is GENERIC
+    (overweight / overlook / overclaim), NOT the grader's rubric — handing it the rubric would be
+    teaching-to-the-test, the mirror of the prereg's "crisp grader smuggles in reflection's edge".
+    Bet: lift < its HumanEval reputation because the feedback is fuzzy, not crisp pass/fail."""
+    started = time.time()
+    evidence = _evidence_block(task)
+
+    # ---- REASON (draft): identical to baseline's single call ----
+    draft = _text(
+        client.complete(
+            system=SYSTEM, messages=[{"role": "user", "content": render_stuffed(task)}],
+            max_tokens=1024,
+        ).content
+    )
+
+    # ---- REASON (critique): generic self-review, no rubric leakage ----
+    critique_prompt = (
+        f"{evidence}\n\nYOUR DRAFT POSITION:\n{draft}\n\n"
+        "Critique your own draft: what did you overweight, overlook, or overclaim? Be specific "
+        "and brief. Do not rewrite the position yet."
+    )
+    critique = _text(
+        client.complete(
+            system=SYSTEM, messages=[{"role": "user", "content": critique_prompt}], max_tokens=512
+        ).content
+    )
+
+    # ---- REASON (revise): draft + critique -> final position ----
+    revise_prompt = (
+        f"{evidence}\n\nYOUR DRAFT:\n{draft}\n\nYOUR CRITIQUE:\n{critique}\n\n"
+        f"Produce your revised, final position.\n\n{POSITION_FORMAT}"
+    )
+    position = parse_formed_position(
+        _text(
+            client.complete(
+                system=SYSTEM, messages=[{"role": "user", "content": revise_prompt}],
+                max_tokens=1024,
+            ).content
+        )
+    )
+    return make_result(
+        "reflection", task, position, client, n_reads=0, n_turns=3,
+        latency_s=time.time() - started,
+    )
 
 
 # The registry the runner iterates; the remaining arms join here as they land.
-ARMS: dict[str, Arm] = {"baseline": baseline, "react": react, "plan_execute": plan_execute}
+ARMS: dict[str, Arm] = {
+    "baseline": baseline,
+    "react": react,
+    "plan_execute": plan_execute,
+    "reflection": reflection,
+}
