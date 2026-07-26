@@ -45,7 +45,7 @@ The discipline did its job repeatedly: the §0.17 smoke caught two harness bugs 
 | Pre-registration | `reasoning-pattern` prior (40) + legs + retraction locked 2026-06-29 (`prereg_reasoning.py`) before any run |
 | Retro written | this file |
 | `/learn` written | ✅ `tasks/lessons.md` §0.25 (+ [DELETE] considered below) |
-| Three-reviewer pass | ⬜ pending — see § below |
+| Three-reviewer pass | ✅ ran — corrected both mechanism legs to artifacts; a full confound-removing re-test then re-earned reflection + refuted plan (see § below) |
 
 ## Three-reviewer pass outcome (the load-bearing event of the close)
 
@@ -59,7 +59,18 @@ Three clean-context Opus reviewers (method-rigor / framing-stress / prior-art). 
 - **[prior-art 90/85/82/80 — reframes] each surviving claim is a known effect:** reflection=caution ← self-correction-limits (Huang 2024 arXiv:2310.01798; Kamoi 2024); overclaiming ← RLHF-calibration (Tian 2023 arXiv:2305.14975) — a confound: reflection may just be a de-biasing prompt over baseline overconfidence; dilution ← distraction (Shi 2023 arXiv:2302.00093; Cuconasu 2024 arXiv:2401.14887 — *near* distractors most harmful = our §0.25 point); §0.25 ← hard-negative/plausible-distractor lineage; "no universal winner" = field consensus, so the novelty is the *taxonomy*.
 - **Data catches (both confirmed firsthand):** react §3.8 N=24 = **8.25** not 6.6 (seed-3 is a position parse-failure, conf −1); `d-metr` leans *toward competition* and `d-mix` is directionless (the key's "length-leaning findings" wording is imprecise); the arm's *plan text* isn't logged (audit gap — only the final answer is in `raw`).
 
-**Net:** the pass caught that the two headline mechanisms (commit-to-few; reflection=caution) are stimulus/prompt artifacts — exactly the class of over-claim the Phase 1.1 pass caught (#4/#6). Only `no-universal-winner` (via failure regimes) survives robustly. → **full re-test** (teaser-matched targets/distractors to defeat triage; neutral critique prompt; prose-scored EVIDENCE_USE; log the plan text) + conservative interim downgrade below.
+**Net:** the pass caught that the two headline mechanisms (commit-to-few; reflection=caution) are stimulus/prompt artifacts — exactly the class of over-claim the Phase 1.1 pass caught (#4/#6). Only `no-universal-winner` (via failure regimes) survives robustly. → **full re-test** (teaser-matched targets/distractors to defeat triage; neutral critique prompt; prose-scored EVIDENCE_USE; log the plan text) + conservative interim downgrade (→ hypothesis, conf 50).
+
+### Re-test outcome (2026-07-26) — the confounds removed, the position re-earned
+
+The re-test **anonymized** the evidence presentation (uniform `item-NN` ids + a content-free label in both `list_evidence` and the stuffed prompt — killing the id-prefix **and** teaser tells, so triage is *structurally* impossible), used a **neutral critique** (no "overclaim"), and **prose-scored EVIDENCE_USE**. 180 runs; it **discriminated cleanly** (author verified firsthand):
+
+- **plan-execute's §1.8 "commit-to-few" — REFUTED.** With triage defeated, plan reads a wide blind range and plan ≈ react on §1.8 (10.6/8.2/9.6 vs 15.8/6.2/9.8, order flips by N). The win *was* teaser-triage. → leg dropped.
+- **reflection = systematic caution — EARNED.** Survives the neutral critique: uniform confidence-lowering (Δ −9/−9/−18 vs baseline), holds the §3.8 hedge (conf 40, wins 16.6). Retraction clause (c) did **not** fire. → 40 → 60.
+- **retrieve > stuff under §1.8 dilution — survives, generic** (plan ≈ react ~9.7 > collapsed baseline 3.6). → 40 → 55.
+- **§1.1 null / no-universal-winner — confirmed.** (9/180 bad rows, all retrieve arms; depresses react slightly, no direction change.)
+
+**Net:** one artifact killed, one mechanism earned → `reasoning-pattern` **50 → 58, candidate** (trajectory 40 → 62 → 50 → 58). This is the discipline's full arc in one phase: pre-register → over-claim → catch-the-confound → re-test → re-earn. The two-round correction (pass *then* re-test) is the sharpest case yet that a critical-boundary review is worth its cost.
 
 ## Method wins (process-stream, → `tasks/lessons.md`)
 

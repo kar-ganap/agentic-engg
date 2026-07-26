@@ -66,8 +66,37 @@ bias and the debate's epistemic structure:
 - DeepSeek arms + Sonnet judge only; cross-provider untested. Fuzzy grader is an unvalidated
   instrument (not checked against human grades). 5 seeds/cell; the rot is stochastic (bimodal).
 
+## Re-test — confound removal (2026-07-26)  {#retest}
+
+The three-reviewer pass found the two *mechanism* legs were artifacts, so we re-ran with all three
+confounds removed: **anonymized presentation** (uniform `item-NN` ids + a content-free label in both
+`list_evidence` and the stuffed prompt — no id-prefix or teaser tell, so triage is *structurally*
+impossible), a **neutral critique** prompt (no "overclaim" keyword), and **prose-scored
+EVIDENCE_USE** (judged on the stance's reasoning, not citation-list purity). 180 runs; the re-test
+**discriminated cleanly**:
+
+- **plan-execute's "commit-to-few" §1.8 win — REFUTED (was teaser-triage).** With triage defeated,
+  plan reads a wide blind range (mean ~7–10, not "exactly the targets"), and plan vs react on §1.8
+  is **10.6 / 8.2 / 9.6 vs 15.8 / 6.2 / 9.8** — order flips by N, within noise. The commit-to-few
+  edge does not survive.
+- **reflection's §3.8 caution win — EARNED (survives the neutral critique).** Reflection still
+  lowers confidence **uniformly** (Δ −9 / −9 / −18 vs baseline across the three debates), holds the
+  §3.8 hedge (conf 40, wins 16.6), and mis-serves the confident debates. The mechanism was **not**
+  the keyword.
+- **retrieve > stuff under §1.8 dilution — survives, but GENERIC.** baseline collapses hardest of
+  all (3.6 @N=24, pulled to length/skepticism); the retrieve arms (plan ≈ react ~9.7) beat it — but
+  it's *retrieval*, not commit-to-few.
+- **§1.1 null / no-universal-winner — confirmed.** Data note: 9/180 bad rows, all retrieve arms on
+  the two hard debates (anonymized loops truncate more) — depresses react slightly, no direction
+  change.
+
+**Net:** one artifact killed, one mechanism earned → `reasoning-pattern` moves 50 → **58, candidate**
+(trajectory 40 → 62 → 50 → 58). Earned: reflection=systematic-caution (60); retrieve>stuff-generic
+(55); no-universal-winner (65). Dropped: plan commit-to-few.
+
 ## Data
 Result JSONLs in `experiments/phase-2.0/results/reasoning-*.jsonl` (each row carries the position,
-arm telemetry, judge tokens, the raw arm+judge outputs, and the 5 grade scores). §1.8 =
-`reasoning-20260725T180547`; §1.1+§3.8 = `reasoning-20260725T190138`. Pools:
+arm telemetry, judge tokens, the raw arm+judge outputs, plan trace, and the 5 grade scores). First
+sweeps (confounded): §1.8 = `reasoning-20260725T180547`, §1.1+§3.8 = `reasoning-20260725T190138`.
+**Confound-removed re-test: `reasoning-20260725T222940` (all three pools).** Pools:
 `pool_signal_density.py` / `pool_tool_stability.py` / `pool_capability_failuremode.py`.
