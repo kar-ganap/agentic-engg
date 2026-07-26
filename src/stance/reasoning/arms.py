@@ -30,10 +30,11 @@ SYSTEM = (
 )  # neutral by design: no distractor pre-warning (else the §1.8 rot can't be induced — the #4 trap)
 
 # Uniform, generous cap: models spend reasoning + verbose synthesis tokens before the visible
-# answer, so a tight cap truncates the retrieve arms mid-analysis before STANCE (DeepSeek @1024,
-# 2026-07-25; Kimi K3 @2048, 2026-07-26 — K3 is verbose and reads many items). 4096 clears both.
+# answer, so a tight cap truncates before STANCE (DeepSeek @1024, 2026-07-25; K3 react @2048).
+# K3's 3-call reflection is worse still — one revise call burned 4096 on reasoning with an EMPTY
+# visible answer (2026-07-26), 7 bad reflection rows. 8192 gives the verbose multi-call arms room.
 # A cap costs nothing unless used; uniform across arms preserves the control.
-_MAX_TOKENS = 4096
+_MAX_TOKENS = 8192
 
 
 @dataclass
