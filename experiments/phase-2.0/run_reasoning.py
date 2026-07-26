@@ -46,10 +46,12 @@ def cells(pools: list[str], sizes: list[int], confs: list[str],
 
 
 def row(pid: str, arm: str, size: int, conf: str, seed: int,
-        result: ArmResult, gr: GradeResult, judge_meter: Any) -> dict[str, Any]:
+        result: ArmResult, gr: GradeResult, judge_meter: Any,
+        arm_provider: str, arm_model: str) -> dict[str, Any]:
     p = result.position
     return {
-        "pool": pid, "arm": arm, "n_distractors": size, "confusability": conf, "seed": seed,
+        "pool": pid, "arm": arm, "arm_provider": arm_provider, "arm_model": arm_model,
+        "n_distractors": size, "confusability": conf, "seed": seed,
         "stance": p.stance, "confidence": p.confidence, "retraction": p.retraction,
         "evidence_used": list(p.evidence_used), "raw": p.raw,  # full final answer, for audit
         "trace": result.trace,  # intermediate reasoning (plan_execute's plan) — audit gap fix
@@ -105,7 +107,8 @@ def main() -> None:
                 result = ARMS[arm_name](task, client)
                 judge = LLMClient(provider="anthropic", model=args.judge_model)  # fresh per grade
                 gr = grade(task, result, judge)
-                f.write(json.dumps(row(pid, arm_name, size, conf, seed, result, gr, judge.meter)))
+                f.write(json.dumps(row(pid, arm_name, size, conf, seed, result, gr, judge.meter,
+                                       args.arm_provider, args.arm_model)))
                 f.write("\n")
                 f.flush()
                 n += 1
