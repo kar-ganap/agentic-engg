@@ -89,6 +89,7 @@ class ArmResult:
     n_distractors: int
     confusability: str
     seed: int
+    trace: str = ""  # intermediate reasoning worth auditing (e.g. plan_execute's plan)
 
 
 Arm = Callable[[Task, Client], ArmResult]
@@ -99,10 +100,11 @@ def _text(content: list[Any]) -> str:
 
 
 def _evidence_block(task: Task) -> str:
-    """Debate + the full evidence set inline, WITHOUT the format instruction (so critique/revise
-    passes can reuse the context without being told to emit a position)."""
+    """Debate + the full evidence set inline (anonymized display ids — the internal ref/kind is
+    never shown), WITHOUT the format instruction (so critique/revise passes can reuse the context
+    without being told to emit a position)."""
     lines = [f"DEBATE: {task.debate}", "", "EVIDENCE:"]
-    lines += [f"- [{e.ref}] {e.text}" for e in task.evidence]
+    lines += [f"- [{e.display_id}] {e.text}" for e in task.evidence]
     return "\n".join(lines)
 
 
@@ -114,7 +116,7 @@ def render_stuffed(task: Task) -> str:
 
 def make_result(
     arm: str, task: Task, position: FormedPosition, client: Client, *,
-    n_reads: int, n_turns: int, latency_s: float,
+    n_reads: int, n_turns: int, latency_s: float, trace: str = "",
 ) -> ArmResult:
     """Assemble an ArmResult from the client's Meter + the loop's read/turn counts. The arms call
     this so the telemetry shape stays uniform across them."""
@@ -123,7 +125,7 @@ def make_result(
         arm=arm, position=position, input_tokens=m.input_tokens, output_tokens=m.output_tokens,
         cache_read_tokens=m.cache_read_tokens, n_calls=m.n_calls, n_reads=n_reads, n_turns=n_turns,
         latency_s=latency_s, pool_id=task.pool_id, n_distractors=task.n_distractors,
-        confusability=task.confusability, seed=task.seed,
+        confusability=task.confusability, seed=task.seed, trace=trace,
     )
 
 
@@ -215,9 +217,9 @@ def plan_execute(task: Task, client: Client) -> ArmResult:
     sets; ties or trails react on small/known ones."""
     started = time.time()
     env = EvidenceEnv(task)
-    refs = [e.ref for e in task.evidence]
+    display_ids = [e.display_id for e in task.evidence]  # anonymized; the list carries no content
 
-    # ---- REASON (plan): decide ALL reads up front, from the teasers only ----
+    # ---- REASON (plan): decide ALL reads up front, from the (uniform) list only ----
     plan_prompt = (
         f"DEBATE: {task.debate}\n\n"
         f"Available evidence:\n{env.list_evidence()}\n\n"
@@ -232,10 +234,10 @@ def plan_execute(task: Task, client: Client) -> ArmResult:
         ).content
     )
 
-    # ---- ACT (execute): batch-read the ids the plan named (frozen — no adaptation). ----
+    # ---- ACT (execute): batch-read the display_ids the plan named (frozen — no adaptation). ----
     named = set(re.findall(r"[a-zA-Z0-9-]+", plan))  # whole tokens -> no substring false-positives
-    planned = [ref for ref in refs if ref in named] or refs  # failed plan -> read all (gradeable)
-    read = [f"- [{ref}] {env.read_evidence(ref)}" for ref in planned]
+    planned = [d for d in display_ids if d in named] or display_ids  # failed plan -> read all
+    read = [f"- [{d}] {env.read_evidence(d)}" for d in planned]
 
     # ---- REASON (answer): sees everything it planned to read, together. ----
     answer_prompt = (
@@ -253,7 +255,7 @@ def plan_execute(task: Task, client: Client) -> ArmResult:
     )
     return make_result(
         "plan_execute", task, position, client, n_reads=env.n_reads, n_turns=2,
-        latency_s=time.time() - started,
+        latency_s=time.time() - started, trace=plan,  # log the plan (audit gap the pass flagged)
     )
 
 
@@ -275,10 +277,12 @@ def reflection(task: Task, client: Client) -> ArmResult:
     )
 
     # ---- REASON (critique): generic self-review, no rubric leakage ----
+    # NEUTRAL critique (§0.25 re-test): must NOT name the failure mode. The prior wording
+    # ("overweight/overlook/overclaim") named §3.8's exact corrective -> teaching-to-the-test.
     critique_prompt = (
         f"{evidence}\n\nYOUR DRAFT POSITION:\n{draft}\n\n"
-        "Critique your own draft: what did you overweight, overlook, or overclaim? Be specific "
-        "and brief. Do not rewrite the position yet."
+        "Review your draft for reasoning errors or weaknesses and note them. Be specific and "
+        "brief. Do not rewrite the position yet."
     )
     critique = _text(
         client.complete(

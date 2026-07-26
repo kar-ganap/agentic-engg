@@ -22,8 +22,8 @@ def _task() -> Task:
         pool_id="test",
         debate="does X drive Y?",
         evidence=(
-            EvidenceItem("target one full text goes here", "target", "ev-t1"),
-            EvidenceItem("a confusable distractor claim, full text", "distractor", "d-1"),
+            EvidenceItem("target one full text goes here", "target", "ev-t1", "item-01"),
+            EvidenceItem("a confusable distractor claim, text", "distractor", "d-1", "item-02"),
         ),
         correct_position="yes, X drives Y",
         n_distractors=1,
@@ -79,11 +79,13 @@ def test_parse_tolerates_markdown_labels() -> None:
 
 
 # ---- retrieval environment ----
-def test_env_list_read_and_reads_metric() -> None:
+def test_env_list_is_anonymized_and_uniform() -> None:
     env = EvidenceEnv(_task())
     listing = env.list_evidence()
-    assert "ev-t1:" in listing and "d-1:" in listing  # both ids, teasers
-    assert env.read_evidence("ev-t1") == "target one full text goes here"  # full text
+    assert "item-01:" in listing and "item-02:" in listing  # anonymized display ids
+    assert "ev-t1" not in listing and "d-1" not in listing  # internal refs NEVER leak
+    assert "target one full text" not in listing  # no content teaser -> no triage
+    assert env.read_evidence("item-01") == "target one full text goes here"  # read reveals content
     assert env.n_reads == 1
     assert "NOT_FOUND" in env.read_evidence("nope")
     assert env.n_reads == 1  # a failed read does not count
@@ -92,8 +94,8 @@ def test_env_list_read_and_reads_metric() -> None:
 def test_env_dispatch_and_specs() -> None:
     env = EvidenceEnv(_task())
     assert {t["name"] for t in env.tool_specs()} == {"list_evidence", "read_evidence"}
-    assert "d-1:" in env.dispatch("list_evidence", {})
-    assert env.dispatch("read_evidence", {"id": "d-1"}).startswith("a confusable")
+    assert "item-02:" in env.dispatch("list_evidence", {})
+    assert env.dispatch("read_evidence", {"id": "item-02"}).startswith("a confusable")
     assert "UNKNOWN_TOOL" in env.dispatch("bogus", {})
 
 
@@ -178,14 +180,14 @@ _FINAL = "STANCE: competition\nCONFIDENCE: 70\nRETRACTION: neutral knee\nEVIDENC
 
 def test_react_reasons_acts_then_answers() -> None:
     client = _ScriptedClient([
-        _Scripted([_ToolUse("t1", "list_evidence", {})], "tool_use"),          # ACT: list
-        _Scripted([_ToolUse("t2", "read_evidence", {"id": "ev-t1"})], "tool_use"),  # ACT: read
-        _Scripted([_Block(_FINAL)], "end_turn"),                                # REASON: answer
+        _Scripted([_ToolUse("t1", "list_evidence", {})], "tool_use"),              # ACT: list
+        _Scripted([_ToolUse("t2", "read_evidence", {"id": "item-01"})], "tool_use"),  # ACT: read
+        _Scripted([_Block(_FINAL)], "end_turn"),                                   # REASON: answer
     ])
     r = react(_task(), client)
     assert r.arm == "react"
     assert r.position.confidence == 70
-    assert r.n_reads == 1            # read ev-t1 exactly once (the sidestep metric)
+    assert r.n_reads == 1            # read item-01 exactly once (the sidestep metric)
     assert r.n_turns == 3 and r.n_calls == 3
 
 
@@ -202,14 +204,15 @@ def test_react_forced_final_on_cap_exhaustion() -> None:
 # ---- plan_execute (plan names the reads up front; harness batch-reads them; no adaptation) ----
 def test_plan_execute_reads_only_the_committed_subset() -> None:
     client = _ScriptedClient([
-        _Scripted([_Block("PLAN: read ev-t1 to check the claim.")], "end_turn"),  # names ev-t1 only
-        _Scripted([_Block(_FINAL)], "end_turn"),                                  # answer
+        _Scripted([_Block("PLAN: read item-01 to check the claim.")], "end_turn"),  # names 1 id
+        _Scripted([_Block(_FINAL)], "end_turn"),                                    # answer
     ])
     r = plan_execute(_task(), client)
     assert r.arm == "plan_execute"
     assert r.n_turns == 2                 # plan + answer (batch-reads are not model calls)
-    assert r.n_reads == 1                 # ONLY ev-t1 — the distractor d-1 was not in the plan
+    assert r.n_reads == 1                 # ONLY item-01 — item-02 was not in the plan
     assert r.position.confidence == 70
+    assert r.trace.startswith("PLAN:")    # the plan is logged (audit gap fix)
 
 
 def test_plan_execute_fallback_reads_all_when_plan_names_no_id() -> None:
@@ -218,7 +221,7 @@ def test_plan_execute_fallback_reads_all_when_plan_names_no_id() -> None:
         _Scripted([_Block(_FINAL)], "end_turn"),
     ])
     r = plan_execute(_task(), client)
-    assert r.n_reads == 2  # fallback: read all (ev-t1 + d-1), still gradeable
+    assert r.n_reads == 2  # fallback: read all (item-01 + item-02), still gradeable
 
 
 # ---- reflection: draft -> generic critique -> revise; returns the REVISED position, not the draft

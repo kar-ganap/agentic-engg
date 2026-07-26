@@ -39,8 +39,9 @@ class EvidenceItem:
     """One item in a materialized Task's evidence set (a target or a distractor)."""
 
     text: str
-    kind: str  # target | distractor
-    ref: str   # evidence id (target) or distractor id (distractor)
+    kind: str          # target | distractor  — internal (judge-only), never shown to the arm
+    ref: str           # evidence id (target) or distractor id (distractor) — internal
+    display_id: str = ""  # anonymized shuffled id shown to the arm (item-NN); defeats triage
 
 
 @dataclass(frozen=True)

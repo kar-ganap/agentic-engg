@@ -55,6 +55,12 @@ def build_task(
 
     evidence = targets + distractors
     rng.shuffle(evidence)
+    # anonymize: assign shuffled display ids AFTER the shuffle so item-NN order carries no signal,
+    # and the internal ref/kind (target vs distractor) is never exposed to the arm (defeats triage).
+    evidence = [
+        EvidenceItem(text=e.text, kind=e.kind, ref=e.ref, display_id=f"item-{i + 1:02d}")
+        for i, e in enumerate(evidence)
+    ]
     return Task(
         pool_id=pool.id,
         debate=pool.debate,

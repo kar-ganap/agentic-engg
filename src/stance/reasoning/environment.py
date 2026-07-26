@@ -13,30 +13,30 @@ from typing import Any
 
 from stance.reasoning.pool import Task
 
-
-def _teaser(text: str, n_words: int = 12) -> str:
-    words = text.split()
-    return " ".join(words[:n_words]) + ("…" if len(words) > n_words else "")
+# Uniform, content-free label for every item — the anti-triage design (§0.25 re-test). If the list
+# showed a content teaser, a retrieve arm could skim-triage the decisive items without reading; the
+# uniform label forces it to actually read, so commit-to-few is tested honestly, not via triage.
+_ITEM_LABEL = "[evidence — read the item to view its content]"
 
 
 class EvidenceEnv:
     def __init__(self, task: Task) -> None:
-        self._items = {e.ref: e for e in task.evidence}
-        self._order = [e.ref for e in task.evidence]  # already shuffled by the sampler
-        self.reads: list[str] = []  # ordered log of read refs (the sidestep metric)
+        self._items = {e.display_id: e for e in task.evidence}  # keyed by the anonymized id
+        self._order = [e.display_id for e in task.evidence]  # already shuffled by the sampler
+        self.reads: list[str] = []  # ordered log of read display_ids (the sidestep metric)
 
     @property
     def n_reads(self) -> int:
         return len(self.reads)
 
     def list_evidence(self) -> str:
-        return "\n".join(f"{ref}: {_teaser(self._items[ref].text)}" for ref in self._order)
+        return "\n".join(f"{did}: {_ITEM_LABEL}" for did in self._order)  # uniform -> no tell
 
-    def read_evidence(self, ref: str) -> str:
-        item = self._items.get(ref)
+    def read_evidence(self, did: str) -> str:
+        item = self._items.get(did)
         if item is None:
-            return f"NOT_FOUND: no evidence with id {ref!r}; use an id from list_evidence."
-        self.reads.append(ref)
+            return f"NOT_FOUND: no evidence with id {did!r}; use an id from list_evidence."
+        self.reads.append(did)
         return item.text
 
     def tool_specs(self) -> list[dict[str, Any]]:

@@ -52,6 +52,7 @@ def row(pid: str, arm: str, size: int, conf: str, seed: int,
         "pool": pid, "arm": arm, "n_distractors": size, "confusability": conf, "seed": seed,
         "stance": p.stance, "confidence": p.confidence, "retraction": p.retraction,
         "evidence_used": list(p.evidence_used), "raw": p.raw,  # full final answer, for audit
+        "trace": result.trace,  # intermediate reasoning (plan_execute's plan) — audit gap fix
         "arm_input_tokens": result.input_tokens, "arm_output_tokens": result.output_tokens,
         "arm_cache_read_tokens": result.cache_read_tokens, "n_calls": result.n_calls,
         "n_reads": result.n_reads, "n_turns": result.n_turns,

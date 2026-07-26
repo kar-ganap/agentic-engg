@@ -46,8 +46,9 @@ RUBRIC = (
     "off; 4=near the target confidence band.\n"
     "- RETRACTION: 0=none/vacuous; 2=generic but present; 4=specific, names concrete disconfirming "
     "evidence.\n"
-    "- EVIDENCE_USE: 0=driven by distractors / ignored targets; 2=mixed pull; 4=weighed the "
-    "targets, resisted the distractors.\n"
+    "- EVIDENCE_USE (judge the STANCE's PROSE reasoning, NOT the EVIDENCE_USED id list): 0=the "
+    "prose parrots the flawed/distractor findings or ignores the decisive ones; 2=partial; 4=the "
+    "prose explicitly weighs the decisive evidence AND names + discounts the flawed items.\n"
     "- EPISTEMIC_HUMILITY: 0=false certainty on contested points OR over-hedges a solid claim; "
     "2=uneven; 4=hedges where contested, commits where solid."
 )
