@@ -147,6 +147,13 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 - **Cross-condition cache contamination flattens the curve you're measuring.** Conditions sharing a filler prefix get cross-condition cache hits (DeepSeek TTL hours-days) — salt each condition + add a per-run nonce so every cell is cold. (Generalizes the Phase 1.0 Exercise-B cross-condition cache confound to the scripted setting.)
 - **Cheap + conclusive.** The whole #3 arc was ~$0.22 because the prediction told us exactly which N to bracket — pre-registration narrows the sweep.
 
+### §0.25 — To induce competition, distractors must be ON-AXIS + non-decisive-by-flaw; "silent" (§0.22) guarantees triage-ability
+**Trigger:** *Without this, distractors built to be topically-related-but-SILENT-on-the-axis (§0.22 as written) are trivially triaged as off-topic — no competition is induced, the phenomenon under test (§1.8 diffuse-collapse) can't fire, and the arm comparison collapses into who-triages-best. The first §1.8 reasoning sweep exposed it: plan_execute read exactly the 3 targets (reads=3, 96% target citations) at every N∈{4,12,24} and baseline held a flat stance-correctness (~3.5), because the targets were specific empirical findings and the distractors were generic off-axis mechanisms — separable by RELEVANCE at a glance. With this, distractors ENGAGE the axis (may even lean to the wrong answer) but carry an EXPLICIT decisiveness-defeating flaw (confound / underpower / mixed result / metric fragility): untriageable by topic, non-decisive by construction, so the model must actually reason about each flaw.*
+- **The cause is relevance-triage, not specificity.** Off-axis = recognizably-not-the-answer; making the targets vaguer wouldn't help. The fix is on-axis distractors, full stop.
+- **The tension it resolves:** non-decisiveness (needed for a fixed correct answer) vs selection-confusability (needed for competition). An explicit flaw defeats decisiveness *without* changing the correct answer — the only way to have both.
+- **Multiplier corollary:** near-duplicate variants (one-word slots) read as obvious filler; vary the numbers *and the flaw itself* so variants look like distinct studies. And update the grading KEY to name the discount-the-flawed-evidence move, or the DV won't reward flaw-detection.
+- Generalizes **§0.20** (presence ≠ rivalry): §0.22-silent distractors are *present* but non-rival by construction.
+
 ---
 
 ## Phase-specific notes (chronological)
