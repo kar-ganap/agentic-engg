@@ -3,7 +3,7 @@
 A position-forming task = DEBATE + an evidence set = TARGETS (the graph's real evidence, which fix
 the correct position) + DISTRACTORS (non-decisive records that compete for attention).
 
-Confusability principle (REVISED 2026-07-25 after the first sweep, replacing §0.22's "silent"):
+Confusability principle (REVISED 2026-07-25 after the first sweep, replacing the "silent" criterion):
   A distractor must be ON-AXIS (engage competition-vs-length, even lean toward LENGTH) but
   NON-DECISIVE via an EXPLICIT FLAW (confound / underpower / mixed result / metric fragility).
   WHY: silent/off-axis distractors (the old rule) are trivially triaged as off-topic -> no
