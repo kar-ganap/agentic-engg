@@ -10,18 +10,22 @@ from typing import Any
 import anthropic
 
 from stance.reasoning.arms import Meter
-from stance.secrets import anthropic_api_key, deepseek_api_key
+from stance.secrets import anthropic_api_key, deepseek_api_key, moonshot_api_key
 
 _DEEPSEEK_BASE = "https://api.deepseek.com/anthropic"
+_MOONSHOT_BASE = "https://api.moonshot.ai/anthropic"  # Kimi Anthropic-compatible endpoint
 
 
 class LLMClient:
     """Satisfies stance.reasoning.arms.Client (a `meter` + `complete`). One instance per run so the
-    Meter measures exactly that run's usage."""
+    Meter measures exactly that run's usage. All providers go through Anthropic-compatible endpoints
+    so the harness is unchanged; smoke-test the declared-tools path per new provider (§0.17)."""
 
     def __init__(self, *, provider: str, model: str) -> None:
         if provider == "deepseek":
             self._c = anthropic.Anthropic(base_url=_DEEPSEEK_BASE, api_key=deepseek_api_key())
+        elif provider == "moonshot":
+            self._c = anthropic.Anthropic(base_url=_MOONSHOT_BASE, api_key=moonshot_api_key())
         else:
             self._c = anthropic.Anthropic(api_key=anthropic_api_key())
         self.model = model

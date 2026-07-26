@@ -29,10 +29,11 @@ SYSTEM = (
     "Give a calibrated confidence and a falsifiable retraction condition."
 )  # neutral by design: no distractor pre-warning (else the §1.8 rot can't be induced — the #4 trap)
 
-# Uniform, generous cap: DeepSeek v4 spends reasoning tokens before the visible answer, so 1024
-# truncated react mid-analysis before it reached STANCE (smoke 2026-07-25). A cap costs nothing
-# unless used; keeping it uniform across arms preserves the control.
-_MAX_TOKENS = 2048
+# Uniform, generous cap: models spend reasoning + verbose synthesis tokens before the visible
+# answer, so a tight cap truncates the retrieve arms mid-analysis before STANCE (DeepSeek @1024,
+# 2026-07-25; Kimi K3 @2048, 2026-07-26 — K3 is verbose and reads many items). 4096 clears both.
+# A cap costs nothing unless used; uniform across arms preserves the control.
+_MAX_TOKENS = 4096
 
 
 @dataclass
