@@ -335,6 +335,26 @@ Load-bearing only in the **intersection** of:
 
 ---
 
+### §1.9 — No universal best reasoning pattern; match the pattern to the debate's epistemic structure
+
+**Stance:** for evidence-based position-forming, there is no universal best reasoning loop (baseline / ReAct / plan-execute / reflection). Effectiveness is governed by the alignment between a pattern's **inductive bias** and the debate's **epistemic structure**. Across three debates the winner flips: **dilutable-convergent** (§1.8) → *plan-execute* (commit-to-few sidesteps dilution); **robust-single-fact** (§1.1) → *structure-agnostic* (the one decisive fact dominates; reading few marginally risks it); **hedge** (§3.8) → *reflection* (inject-caution reins in the overclaiming all confident-by-default arms suffer). The competition "rot" is itself regime-specific: **dilution / overclaiming / none**.
+
+**Confidence:** 62 (candidate, was hypothesis 40). Legs: no-universal-winner **68** · bias×structure **62** · reflection=systematic-caution **62** · §1.8-dilution-sidestep (anchor) **70** · regime-taxonomy **40** (n=1 debate/regime — mechanisms confirmed, partition not). Capped by single-provider (DeepSeek arms + Sonnet judge), one debate per regime, and an unvalidated fuzzy-rubric grader. Own substrate only; cross-provider untested.
+
+**Mechanism (confirmed via confidence + stance data):** `plan_execute` = commit-to-few → sidesteps §1.8 dilution (baseline bimodal-collapses to length at N=24, `[1,5,5,13,16]`; plan holds `[14,16,17,17,18]`). `reflection` = uniform caution-injection → underclaims §1.8 (conf 61 vs correct 80, so it *hurts*) yet correctly holds §3.8 (44≈45, so it *wins*, rising with N). `react` = read-everything → fine when a fact dominates (§1.1), amplifies §3.8 overclaiming (collapses to 6.6).
+
+**Retraction criterion:** demote if **(a)** one arm dominates ≥4/5 debate types in a wider set (no-universal-winner falls, −30); **(b)** an arm's win/loss traces to something other than its bias, e.g. prompt length (−20); **(c)** reflection's caution-injection fails to replicate or is a generic-critique-prompt artifact (−20); **(d)** the §1.8 dilution collapse fails cross-provider or is a grader artifact (−15). Promote (+15) if a regime's predicted winner replicates on a second debate (the taxonomy firms up).
+
+**Preconditions:** on-axis, non-decisive-by-explicit-flaw distractors (§0.25 — the design that actually induces competition; silent/orthogonal distractors are triaged → no competition); DeepSeek-v4-flash arms + Sonnet-5 fuzzy judge; 5 seeds/cell, N∈{4,12,24}.
+
+**Supporting evidence:** the three cross-debate sweeps (`experiments/phase-2.0/results-reasoning.md`; graph `ev-reason-sd`/`-ts`/`-cf`/`-refl`). The prereg (2026-06-29) bet a single pragmatic winner + react ≥ plan-execute + reflection < reputation; the outcome **refuted** the single-winner and ranking bets and **refined** the reflection bet (it hurts confident tasks, wins hedge tasks).
+
+**What would update this:** cross-provider replication (arms on a 2nd family); ≥2 debates per regime (firms the taxonomy); a human-validated grader (removes the unvalidated-instrument caveat). Each is a distinct +.
+
+**Status:** candidate. Registered 2026-06-29 (prereg, conf 40); moved to 62 on the 3-debate sweep, 2026-07-25 (Phase 2.0). Cross-provider + more-debates-per-regime are the open extensions.
+
+---
+
 ## §2 — Open tensions
 
 ### §2.1 — Manus "keep the wrong stuff in" vs. Chroma context rot
