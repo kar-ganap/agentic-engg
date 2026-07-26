@@ -1,11 +1,13 @@
-"""§1.1 position-forming task pool (Thread B, debate #2) — DRAFT for user review.
+"""§1.1 position-forming task pool (Thread B, debate #2) — content is yours to own.
 
-Same design as pool_signal_density.py, new domain (tool design / agent loops). Target question:
-"should tool definitions be STABLE across a run (no mid-loop mutation)?" Orthogonal rival
-distractors are same-topic (tool design) concerns that DON'T decide the *mutation* question.
+Same on-axis-flawed principle as §1.8 (lessons §0.25): distractors ENGAGE the mutate-or-not
+question and lean toward the WRONG answer (mutation is fine) but are NON-DECISIVE via an EXPLICIT
+flaw (confound / underpower / mixed / metric-fragile). Silent/orthogonal tool-design concerns
+(description, return-format, error-handling) would be triaged as off-topic -> no competition.
 
-(Distractor dataclass duplicated from pool_signal_density for now; lifts to src/stance/reasoning
-when the builder lands.)
+TRAP: do NOT invoke tool-COUNT reduction as a pro-mutation confound — swapping above the measured
+tool-set break-even (#3) is genuinely decisive, not a flaw. The confounds here are all OTHER
+entanglements (prompt length, difficulty, retry logic, model).
 """
 
 from __future__ import annotations
@@ -14,67 +16,80 @@ from stance.reasoning.pool import Distractor, Pool
 
 DEBATE = "Should tool definitions be stable across a run — i.e., never mutated mid-loop?"
 
-# The correct position the rubric grades toward (fixed by the TARGETS).
 CORRECT_POSITION = (
-    "Yes — set tools once at run start and don't mutate mid-loop; handle state-dependent "
-    "availability in the latest user message / tool_choice. Two legs: cache-economics (measured "
-    "~90: mutating the tool block busts the cached prefix, ~7x a stable one) and model-coherence "
-    "(~65, literature-only) — headline ~80, capped by the untested coherence leg. A good answer "
-    "states the stance + both legs + a falsifiable retraction."
+    "Yes — set tools once and don't mutate mid-loop; handle state-dependent availability via the "
+    "latest user message / tool_choice. Two legs: cache-economics (~90: mutating the tool block "
+    "busts the cached prefix, ~7x a stable one) + model-coherence (~65, literature-only) -> "
+    "headline ~80. The pro-mutation findings in the set are confounded, underpowered, or "
+    "metric-fragile — flawed evidence that neither overturns the cache case nor lowers the "
+    "confidence (the one real exception is swapping above the measured tool-COUNT break-even, #3 — "
+    "not mid-run mutation itself). A good answer states the stance + both legs, flags why "
+    "the pro-mutation items are non-decisive, + a falsifiable retraction."
 )
 
-# Targets = decisive real evidence already in data/graph.
 TARGET_EVIDENCE_IDS = ("ev-manus", "ev-exb")
 
 DISTRACTORS: tuple[Distractor, ...] = (
-    # ---- HIGH: orthogonal rival tool-design concerns (axis ⟂ mutate-or-not) ----
+    # A. confounded-pro-mutation: leans toward the WRONG answer (mutate); non-decisive via confound.
     Distractor(
-        "d-desc-1", "description", "high", "real",  # Anthropic tool-design blog (verified)
-        "Anthropic's tool-design guidance: write tool descriptions as if onboarding a new hire — "
-        "make implicit context, query formats, and term definitions explicit; clearer specs "
-        "measurably raise agent tool-use.",
+        "d-conf", "confounded-pro-mutation", "high", "synthetic",
+        "Agents that {mutation} mid-run completed {gain} more tasks, but {confound} — the gain "
+        "isn't attributable to the mutation.",
+        slots={
+            "mutation": ("swapped their toolset", "pruned unused tools", "added tools on demand",
+                         "reordered the tool list"),
+            "gain": ("12%", "a handful of", "noticeably"),
+            "confound": (
+                "the run also used a shorter system prompt",
+                "task difficulty wasn't matched across arms",
+                "the baseline lacked retry logic",
+                "a different model served the mutated runs",
+            ),
+        },  # 4x3x4 = 48
     ),
+    # B. mixed-result: on-axis, non-decisive via inconsistency.
     Distractor(
-        "d-ret-1", "return-format", "high", "synthetic",
-        "Whether a tool returns a verbose or a compact result shape changes downstream success on "
-        "tasks that depend on the returned handle.",
+        "d-mix", "mixed-result", "high", "synthetic",
+        "Across {n}, mid-run tool {change} helped about as often as they hurt — {caveat}.",
+        slots={
+            "n": ("four agent frameworks", "six task suites", "five setups", "three families"),
+            "change": ("swaps", "additions", "prunes"),
+            "caveat": ("no consistent effect", "effect sizes overlapped zero"),
+        },  # 4x3x2 = 24
     ),
+    # C. underpowered: on-axis, non-decisive via noise.
     Distractor(
-        "d-err-1", "error-handling", "high", "synthetic",
-        "Agents that retry a failed tool call with the error fed back complete more tasks than "
-        "agents that abort on the first failure.",
+        "d-under", "underpowered", "high", "synthetic",
+        "A {size} probe found mid-run tool swaps {dir} success, but the gap sat within noise.",
+        slots={
+            "size": ("2-agent", "single-task", "3-run", "small"),
+            "dir": ("slightly improved", "marginally raised", "nudged up"),
+        },  # 4x3 = 12
     ),
+    # D. metric-fragile: stability's benefit looks illusory (leans pro-mutation); non-decisive.
     Distractor(
-        "d-par-1", "parallelism", "high", "synthetic",
-        "Issuing independent tool calls in parallel rather than sequentially cuts end-to-end "
-        "latency at equal task success.",
+        "d-metr", "metric-fragile", "high", "synthetic",
+        "Stable tools helped on {metricpair} on {scope}.",
+        slots={
+            "metricpair": (
+                "latency but the effect vanished on task-success",
+                "cost but vanished on accuracy",
+                "first-call success but vanished end-to-end",
+            ),
+            "scope": ("one eval", "the reranked subset", "a single suite"),
+        },  # 3x3 = 9
     ),
-    # ---- MID: same topic, WRONG QUESTION TYPE (measurement / construction), non-decisive
-    Distractor(
-        "d-bench-1", "benchmark", "mid", "synthetic",
-        "On a tool-use benchmark, agent A completes 68% of tasks and agent B 61% "
-        "(a cross-agent score table).",
-    ),
-    Distractor(
-        "d-fw-1", "framework", "mid", "synthetic",
-        "A new agent framework ships typed tool schemas and a unified tracing UI "
-        "(a library / construction result).",
-    ),
-)
+)  # ~93 HIGH variants across 4 flaw-types
 
-# ---- TRAPS: documented so we (and the builder) never add them as distractors ----
-# 1. "Models degrade past ~N tools; prune to a minimal per-task set" — this IS the #3 carry-swap
-#    axis (tool-count -> swap) => DECISIVE for §1.1's scope (argues FOR mutating). The §1.1 analog
-#    of §1.8's RAG-echoes-primary trap.
-# 2. "Prune/swap unused tools mid-run" — literally advocates mutation => decisive, OPPOSITE answer.
-# 3. "Models robustly ignore stale tool refs; mutation has no cost" => decisive CONTRADICT.
-# 4. "Prompt caching makes a cached prefix ~10x cheaper" — the MECHANISM behind §1.1's cache leg =>
-#    decisive SUPPORT (it's evidence FOR the target, not orthogonal noise).
+# ---- TRAPS under the revised principle (§0.25) ----
+# 1. Pro-mutation finding WITHOUT a flaw => decisive for mutation => breaks grading.
+# 2. tool-COUNT reduction as the pro-mutation reason => that's #3's real break-even => decisive.
+# 3. Silent/orthogonal tool-design concern (description/return-format/error-handling/parallelism)
+#    => off-axis => triage-able => no competition (the §1.8 failure).
 NEAR_MISSES_EXCLUDED = (
-    "tool-count/selection (= #3 carry-swap, decisive)",
-    "prune-mid-run (advocates mutation)",
-    "stale-refs-harmless (contradict)",
-    "prompt-caching-mechanics (supports)",
+    "pro-mutation-without-a-flaw (decisive)",
+    "tool-count break-even (#3, genuinely decisive)",
+    "silent/off-axis tool-design concern (triage-able)",
 )
 
 POOL = Pool(

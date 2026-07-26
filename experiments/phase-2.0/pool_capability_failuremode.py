@@ -1,15 +1,12 @@
-"""§3.8 position-forming task pool (Thread B, debate #3) — DRAFT for user review.
+"""§3.8 position-forming task pool (Thread B, debate #3) — content is yours to own.
 
-Debate #3's distinctive role: the correct answer is a CALIBRATED HEDGE, not a confident stance —
-so it tests appropriate uncertainty (and directly probes the prereg's "reflection <= reputation":
-does a reflection pass help the model hedge, or reinforce an overclaim?).
-
-Orthogonality test (SHARPER here than §1.8's where⟂what — §3.8's claim is an *explanation*, so a
-rival is dangerous when it explains the SAME observation): a distractor is clean only if its TRIGGER
-is ABSENT from §3.8's task = a *benign, ambiguous lookup carrying an "UNKNOWN" affordance*. Anything
-the task's ambiguity or its UNKNOWN instruction could fire is a rival explanation => trap.
-
-(Distractor dataclass duplicated from the other pools for now; lifts to src/stance/reasoning later.)
+On-axis-flawed principle (lessons §0.25) with a §3.8 TWIST: the correct answer is a calibrated
+HEDGE (~45), so the failure mode isn't "pulled to a wrong stance" — it's DROPPING THE HEDGE for
+false confidence (either direction). Distractors are confounded findings that *seem to resolve* the
+capability->failure-mode question (pro-shift / anti-shift / knee); they pull both ways, so the
+correct move is to RESIST and hold the hedge. Each carries an explicit flaw (a clean finding would
+legitimately update the hedge -> decisive); the flaw is a skimmable clause, so the distractor tests
+whether the model ATTENDS to the confound (the epistemic_humility + calibration criteria carry it).
 """
 
 from __future__ import annotations
@@ -21,68 +18,75 @@ DEBATE = (
     "(confabulate -> refuse) and pull the collapse knee earlier?"
 )
 
-# Correct position = a HEDGE. The contradicting evidence (ev-loops-to-oops) is a TARGET here — it's
-# part of WHY the answer hedges. A good answer is calibrated, not confident.
+# Correct = a HEDGE. The contradicting evidence (ev-loops-to-oops) is a TARGET — it's WHY we hedge.
 CORRECT_POSITION = (
-    "PLAUSIBLE but UNCONFIRMED: one n=9 comparison (Haiku vs Sonnet) shows the direction (stronger "
-    "model refuses, weaker confabulates, earlier knee), BUT the explicit UNKNOWN affordance is an "
-    "equally-live cause (not capability), and the parametric-regime literature scales the OPPOSITE "
-    "way — so it's a candidate regime-dependent reversal, undecided pending the mandatory "
-    "affordance-controlled ladder. Confidence ~45. A good answer hedges, flags the affordance "
-    "confound + the contradicting literature, and does NOT state it as established."
+    "PLAUSIBLE but UNCONFIRMED: one n=9 comparison shows the direction (stronger model refuses, "
+    "weaker confabulates, earlier knee), BUT the explicit UNKNOWN affordance is an equally-live "
+    "cause (not capability), and the parametric-regime literature scales the OPPOSITE way — a "
+    "candidate regime-dependent reversal, undecided pending the affordance-controlled ladder. "
+    "Confidence ~45. The confident-looking findings in the set (pointing both ways) are confounded "
+    "— they don't resolve the question, so the ~45 hedge stands. A good answer hedges, names the "
+    "confounds + the contradicting literature, and refuses to be pushed to a confident stance."
 )
 
 # Targets: support + inconclusive + CONTRADICTING (the last is load-bearing for the hedge).
 TARGET_EVIDENCE_IDS = ("ev-exA-capability", "ev-deepseek-abstain", "ev-loops-to-oops")
 
 DISTRACTORS: tuple[Distractor, ...] = (
-    # ---- HIGH: rival failure modes whose TRIGGER is ABSENT from a benign ambiguous lookup ----
+    # A. confounded pro-shift: tempts a confident YES; the flaw IS §3.8's own live confound.
     Distractor(
-        "d-safe-1", "safety-refusal", "high", "synthetic",
-        "Models decline requests they judge harmful or policy-violating — a content-gated refusal "
-        "from safety training.",  # trigger = harmful content (absent from a benign lookup)
+        "d-shift", "confounded-pro-shift", "high", "synthetic",
+        "Larger models refused ambiguous lookups {factor} more than small ones, {confound}.",
+        slots={
+            "factor": ("3x", "far", "consistently", "markedly"),
+            "confound": (
+                "but they were also tuned to abstain, entangling capability with abstention",
+                "but only on items with no correct answer, where refusal was appropriate",
+                "but the small models weren't offered the same refusal option",
+                "but ambiguity wasn't verified independently",
+            ),
+        },  # 4x4 = 16
     ),
+    # B. confounded anti-shift: tempts a confident NO (capability just helps, no mode shift).
     Distractor(
-        "d-syco-1", "sycophancy", "high", "synthetic",
-        # trigger = a user-stated belief (absent from a neutral lookup)
-        "When a user asserts a belief, models often revise their answer to agree with it, even "
-        "against the evidence — a social-alignment failure.",
+        "d-noshift", "confounded-anti-shift", "high", "synthetic",
+        "Scaling {verb} accuracy on ambiguous items without extra refusals, {confound}.",
+        slots={
+            "verb": ("raised", "improved", "lifted"),
+            "confound": (
+                "but the suite lacked an explicit 'unknown' option, so refusal couldn't surface",
+                "but only two model sizes were compared",
+                "but ambiguity wasn't annotator-verified",
+                "but correct abstentions were scored as errors",
+            ),
+        },  # 3x4 = 12
     ),
+    # C. confounded knee-shift: tempts a confident YES on the earlier knee.
     Distractor(
-        "d-inject-1", "prompt-injection", "high", "synthetic",
-        "Adversarial instructions embedded in the input can override a model's intended task "
-        "(prompt injection); models differ in resistance.",  # trigger = injected content (absent)
+        "d-knee", "confounded-knee", "high", "synthetic",
+        "Stronger models degraded at {lower} competition thresholds, {confound}.",
+        slots={
+            "lower": ("lower", "earlier", "smaller"),
+            "confound": (
+                "but weren't difficulty-matched to the weaker models",
+                "but the threshold metric differed across models",
+                "but n=2 per size",
+                "but the stronger models saw harder items",
+            ),
+        },  # 3x4 = 12
     ),
-    # ---- MID: same topic (model reliability), WRONG QUESTION TYPE ----
-    Distractor(
-        "d-bench-1", "benchmark", "mid", "synthetic",
-        "On a factuality benchmark, hallucination rates vary by domain — ~12% on general trivia vs "
-        "~22% on specialized law (a cross-DOMAIN rate table — not capability-graded).",
-    ),
-    Distractor(
-        "d-mitig-1", "mitigation", "mid", "synthetic",
-        "Grounding generation in retrieved source documents (RAG) lowers factual hallucination "
-        "rates (a mitigation method).",
-    ),
-)
+)  # ~40 HIGH variants across 3 flaw-types (pull both ways -> hold the hedge)
 
-# ---- TRAPS (this space is trap-DENSE because §3.8's claim is an explanation) ----
-# The clean test: does the mechanism's TRIGGER fire on §3.8's task? If yes => rival explanation.
-# 1. instruction-following (capability -> obeys the UNKNOWN prompt better) => FEEDS the affordance
-#    confound (the UNKNOWN instruction is present) => decisive. The sharpest trap.
-# 2. general over-refusal / over-caution => ambiguity-triggered (present) => rival explanation.
-# 3. sampling / temperature noise => a rival explanation for the n=9 split ("it's just variance").
-# 4. abstention-training (trained to say IDK) => a rival refusal cause on the same task => decisive.
-# 5. "capability -> more robust retriever" => SAME axis, opposite answer (§3.8's own retraction).
-# 6. parametric-hallucination-scaling ("bigger models hallucinate MORE") => that's ev-loops-to-oops,
-#    a TARGET (contradicting evidence), not a distractor.
+# ---- TRAPS ----
+# 1. A clean (unflawed) pro/anti-shift finding => legitimately updates the hedge => decisive.
+# 2. Orthogonal rival failure modes (safety-refusal, sycophancy, prompt-injection) => off-axis =>
+#    triage-able => no competition (the old §3.8 design; replaced under §0.25).
+# 3. A mixed/underpowered finding => that SUPPORTS the hedge (consistent with uncertainty), so it's
+#    not a temptation here — §3.8's distractors must seem to RESOLVE, not to muddy.
 NEAR_MISSES_EXCLUDED = (
-    "instruction-following (feeds the UNKNOWN affordance-confound)",
-    "general over-refusal (ambiguity-triggered)",
-    "sampling-noise (explains the n=9 split)",
-    "abstention-training (rival refusal cause)",
-    "capability->robustness (same axis, opposite = the retraction trigger)",
-    "parametric-hallucination-scaling (= ev-loops-to-oops, a target)",
+    "clean pro/anti-shift finding (decisive — updates the hedge)",
+    "orthogonal failure mode (off-axis, triage-able)",
+    "mixed/underpowered finding (supports the hedge, not a temptation)",
 )
 
 POOL = Pool(
