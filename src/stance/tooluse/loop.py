@@ -26,6 +26,7 @@ from typing import Any
 from anthropic.types import Message, ToolUseBlock
 
 from stance.tools import Tool
+from stance.tooluse.compaction import Compaction, compact
 from stance.tooluse.events import CallEvent, EventLogger, RefStore, RunRecord
 from stance.tooluse.tools import ToolResult, dispatch
 
@@ -43,6 +44,7 @@ class RunOutcome:
     run_id: str
     final_answer: str
     terminal_status: str
+    n_compactions: int = 0  # times the mid-loop compaction hook fired (0 unless compaction on)
 
 
 def _text(content: list[Any]) -> str:
@@ -82,6 +84,7 @@ def run_tool_loop(
     loop_guard: bool = True,
     max_turns: int = 20,
     max_tokens: int = 2048,
+    compaction: Compaction | None = None,
     raise_on_crash: bool = True,
 ) -> RunOutcome:
     """Run the agent over `task` with `tools`; log a `CallEvent` per turn and a
@@ -94,6 +97,7 @@ def run_tool_loop(
     final_ref: str | None = None
     note: str | None = None
     terminal_status = "max_turns"  # pessimistic default — overwritten only on an early exit
+    n_compactions = 0
     started = time.time()
 
     try:
@@ -188,6 +192,14 @@ def run_tool_loop(
                 terminal_status = "loop_guard"
                 break
             messages.append({"role": "user", "content": tool_result_blocks})
+
+            # --- mid-loop compaction (§1.2; off unless configured) ----------
+            # Trigger on fill-at-use crossing the budget; compact BEFORE the next call sees it.
+            if compaction is not None and usage["input_tokens"] >= compaction.budget_tokens:
+                messages = compact(
+                    messages, compaction.policy, keep_last_turns=compaction.keep_last_turns
+                )
+                n_compactions += 1
     except Exception as e:  # unhandled throw = API hard-fail or code bug (NOT an agent failure)
         terminal_status = "crash"
         note = repr(e)
@@ -202,4 +214,7 @@ def run_tool_loop(
             )
         )
 
-    return RunOutcome(run_id=run_id, final_answer=final_answer, terminal_status=terminal_status)
+    return RunOutcome(
+        run_id=run_id, final_answer=final_answer, terminal_status=terminal_status,
+        n_compactions=n_compactions,
+    )
