@@ -94,6 +94,29 @@ EVIDENCE_USE** (judged on the stance's reasoning, not citation-list purity). 180
 (trajectory 40 → 62 → 50 → 58). Earned: reflection=systematic-caution (60); retrieve>stuff-generic
 (55); no-universal-winner (65). Dropped: plan commit-to-few.
 
+## Cross-provider (Kimi K3 vs DeepSeek) — 2026-07-26  {#xprovider}
+
+The position's #1 caveat was single-provider. Focused matched-config run (§1.8 + §3.8 only — §1.1
+is a null, low value to replicate) with the **arms swapped to Kimi K3** (2.8T flagship — a very
+different family) and the **judge held at Sonnet** (isolates the provider effect). Both earned
+mechanisms **replicate directionally**:
+
+- **reflection = systematic caution — CONFIRMED.** On clean data, K3 reflection holds the §3.8 hedge
+  (conf **46** @N=4, 54 @N=24 ≈ correct ~45), wins §3.8 (grade 13–17), and lowers confidence
+  uniformly (**Δ−10** vs baseline; DeepSeek Δ−15) — same mechanism, marginally weaker. *Caveat that
+  became a finding:* K3's verbose **3-call reflection burned even 4096 tokens on reasoning with an
+  empty visible answer** (7/20 parse-fails). Raising the cap to **8192** fixed it (2/19) — so the
+  earlier "weaker/inconclusive" read was the *measurement*, not the mechanism. Very-verbose models
+  need a larger answer cap → a precondition.
+- **retrieve > stuff under §1.8 dilution — replicates** (retrieve arms > collapsed baseline on both;
+  milder on K3 — baseline 8.6 vs DeepSeek 5.2).
+
+**Net:** single-provider is discharged; `reasoning-pattern` firms **58 → 63** (candidate). Remaining
+caps: unvalidated grader, 1–2 debates/regime. Path to *active*: a validated grader + a 2nd debate
+per regime. Data: `reasoning-20260726T101930` (DeepSeek), `-110319` + `-153204` (Kimi K3, the latter
+the clean reflection re-run @8192). *Billing note:* the K3 reflection re-run stopped at 19/20 on a
+Moonshot balance suspension — enough data; no re-run needed.
+
 ## Data
 Result JSONLs in `experiments/phase-2.0/results/reasoning-*.jsonl` (each row carries the position,
 arm telemetry, judge tokens, the raw arm+judge outputs, plan trace, and the 5 grade scores). First
