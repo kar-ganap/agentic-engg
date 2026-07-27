@@ -24,7 +24,7 @@
 | KV-cache break/restore (Ex4) | 1 | COVERED | 1.0-ext | Exercise B; §1.1 / §3.3 |
 | **compaction + fresh-window (Ex2)** | 1 | **GAP → in progress** | **1.2** | no code existed; unblocks §1.2/§2.1; Thread B |
 | SELF-ROUTE RAG-vs-LC (Ex3) | 1 | DEFERRED | 3.3 (M8) | clean, homed |
-| **tool-selection + namespacing (#2)** | 2 | **GAP → in progress** | **1.2** | `selection.py` built, never run; Thread A |
+| tool-selection + namespacing (#2) | 2 | **COVERED** | 1.2 | §1.10 candidate **78**; lexical verb-capture (not count), cross-provider (DeepSeek+Haiku), verb-swap causal. Path to active: 2nd template/verb-pair |
 | **held-out tool eval set** | 2 | **GAP** | **2.1** | curriculum-required; the eval-mislabel twin |
 | return-a-reference (large payload) | 2 | PARTIAL | future | #6 tested small-id only — wrong scope; "handle=overhead" ≠ "ref doesn't help" |
 | loop-guard / terminal-state *effect* (#7) | 2 | PARTIAL | future | mechanism built + unit-tested; effect unmeasured |

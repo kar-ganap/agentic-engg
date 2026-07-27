@@ -31,7 +31,8 @@ POSITION = Position(
     preconditions=(
         "DeepSeek-v4-flash; single-step selection task (first-tool DV, no loop)",
         "density N∈{0,1,3,5} × {pre,post-namespace} × 5 seeds; names vary, descriptions fixed",
-        "a discriminating signal must exist (semantic overlap real) — else selection is a coin-flip",
+        "a discriminating signal must exist (semantic overlap real) — else selection is a "
+        "coin-flip",
     ),
     retraction=(
         Retraction("down", 25,

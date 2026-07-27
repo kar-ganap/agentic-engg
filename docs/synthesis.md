@@ -356,6 +356,27 @@ Load-bearing only in the **intersection** of:
 **Status:** candidate. Registered 2026-06-29 (prereg 40); over-claimed to 62 (first sweep); corrected to 50 (three-reviewer pass — mechanism legs = artifacts); re-earned to 58 (confound-removed re-test — reflection earned, plan commit-to-few refuted); firmed to 63 on **cross-provider confirmation** (Kimi K3 replicates both mechanisms), 2026-07-26. Path to *active*: a **human-validated grader** + a **second debate per regime**.
 ---
 
+### §1.10 — Tool selection is governed by lexical name↔request alignment, not tool count
+
+**Stance:** confusable-sibling **presence — not count** — degrades an agent's *first* tool choice. A sibling whose **name** lexically matches the request verb captures the call the instant it appears (a **step-function**, not a gradient), *overriding the semantically-correct description*. The prompt *"Look up the customer X"* is captured by `lookup_user` even though the correct `search_users` carries the best-matching description (*"Find a customer by name"*). Two fixes: **(1) namespace by entity** (`{entity}_search`) makes the entity token the *unique* disambiguator → 1.00 selection at every density; **(2) equivalently, align the tool's name-verb to the request**. The DV is **mechanical** (deterministic first-tool match — no fuzzy judge), so this position carries no grader caveat.
+
+**Confidence:** 78 (candidate). Trajectory **55 (prereg) → 78** (both pre-registered falsifier clauses failed to fire; sharpened from "density" to "lexical" by two controls + a cross-provider anchor). Legs: namespacing-recovers **85** · lexical-verb-capture **80** · presence-not-count **78** · cross-provider **72** · template-generality **55** (the cap).
+
+**Controls (the sharpening):** (a) **N=2 fill** — `find_user` (entity-share, no verb match) is present from N=1 and *never* captures; the collapse switches on the instant `lookup_user` enters at N=2 → presence, not count. (b) **Verb-swap** (causal) — move "lookup" onto the correct tool (`→ lookup_users`) and selection recovers to **1.00** (predicted ≥0.80): the attraction follows the verb-token wherever it lives. Every wrong pick on **both** providers was the same sibling `lookup_user`.
+
+**Cross-provider (Haiku vs DeepSeek v4-flash):** same step-function (N=1 1.00 → N=3 collapse), same specific attractor, same namespacing + verb-swap recovery — Haiku a hair more robust (N=3 0.20 vs 0.00). The mechanism is cross-provider, not a cheap-model artifact. Graph: `ev-tool-selection`.
+
+**Retraction:** demote if the capture fails to replicate on a 2nd task template / verb-pair (−20, it was specific to "lookup"/"look up"); if a 3rd provider holds 1.00 pre-namespace at N≥3 (−15). Promote (+12) to *active* if a 2nd template/verb-pair replicates the capture **and** the verb-swap recovery.
+
+**Preconditions:** DeepSeek v4-flash (primary) + Haiku anchor; single template *"Look up the customer X"*; pre-siblings = synonyms/cross-entity, post = `{entity}_search`; the correct-tool description is the best semantic match (the lure); N∈{0,1,2,3,5} × {pre,post} × 5 seeds; verb-swap at N∈{3,5}.
+
+**Prior art** (reference classes; verify IDs firsthand per §0.16 before the capstone): **namespacing tools by service/entity** to cut mis-selection is Anthropic practitioner guidance (*Writing effective tools / Effective Context Engineering*, 2025) — now own-substrate. The surface-name-over-description mechanism instantiates the **lexical-overlap-heuristic** reference class (McCoy et al., HANS, 1902.01007 — models exploit lexical overlap over semantics). Tool-selection-at-scale: Gorilla (2305.15334), ToolLLM (2307.16789). Novelty here is the *causal* isolation (verb-swap) that it is the name-token, not count or description.
+
+**Supporting evidence:** `experiments/phase-1.2/results-selection.md`; graph `ev-tool-selection` + warranted support.
+
+**Status:** candidate. Registered 2026-07-27 (prereg 55, `phase-1.1-plan §293`); confirmed + sharpened to 78 the same day (two controls + Haiku anchor). Path to *active*: a **2nd task template / verb-pair** (the template-generality leg).
+---
+
 ## §2 — Open tensions
 
 ### §2.1 — Manus "keep the wrong stuff in" vs. Chroma context rot
