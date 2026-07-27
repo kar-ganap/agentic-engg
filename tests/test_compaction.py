@@ -192,3 +192,48 @@ def test_compaction_trigger_counts_cached_context(tmp_path: Path) -> None:
         run_id="rcache", loop_guard=False, max_turns=8, compaction=comp,
     )
     assert out.n_compactions >= 1  # input_tokens=50 never crosses 1000, but 50+5000 does
+
+
+def _kinds(content: Any) -> list[str | None]:
+    out = []
+    for b in content:
+        out.append(b.get("type") if isinstance(b, dict) else getattr(b, "type", None))
+    return out
+
+
+def _reasoning_run(tmp_path: Path, strip_reasoning: bool) -> list[list[dict[str, Any]]]:
+    """One tool-use turn that emits BOTH reasoning text and a tool_use, then finishes; captures the
+    message history the model sees on the next call."""
+    logger, refs = _harness(tmp_path)
+    seen: list[list[dict[str, Any]]] = []
+    n = {"i": 0}
+
+    def fn(**kw: Any) -> SimpleNamespace:
+        seen.append([dict(m) for m in kw["messages"]])
+        n["i"] += 1
+        if n["i"] == 1:
+            blocks: list[Any] = [
+                TextBlock(type="text", text="Let me look up O-1042.", citations=None),
+                ToolUseBlock(type="tool_use", id="t1", name="get_order",
+                             input={"order_id": "O-1042"}),
+            ]
+            return SimpleNamespace(content=blocks, stop_reason="tool_use", usage=_usage(100))
+        return SimpleNamespace(content=[TextBlock(type="text", text="done", citations=None)],
+                               stop_reason="end_turn", usage=_usage(100))
+
+    run_tool_loop(task="x", system="s", tools=_tools(), model="m", complete_fn=fn, logger=logger,
+                  refs=refs, run_id="rr", loop_guard=False, max_turns=4,
+                  strip_reasoning=strip_reasoning)
+    return seen
+
+
+def test_strip_reasoning_drops_tool_turn_text(tmp_path: Path) -> None:
+    seen = _reasoning_run(tmp_path, strip_reasoning=True)
+    asst = next(m for m in seen[1] if m["role"] == "assistant")  # turn-1 assistant, next-turn view
+    assert "text" not in _kinds(asst["content"]) and "tool_use" in _kinds(asst["content"])
+
+
+def test_default_persists_reasoning_text(tmp_path: Path) -> None:
+    seen = _reasoning_run(tmp_path, strip_reasoning=False)
+    asst = next(m for m in seen[1] if m["role"] == "assistant")
+    assert "text" in _kinds(asst["content"])  # the self-preservation channel, on by default

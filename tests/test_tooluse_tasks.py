@@ -422,10 +422,10 @@ def test_compaction_stages_chain_with_blocked_refs() -> None:
     assert len(chain) == 9 and len(set(chain)) == 9  # distinct chain
     assert len(blocked) == 3 and chain[0] not in blocked  # 3 blocked, never the first
     assert set(blocked) <= set(chain)  # blocked are chain orders
-    assert task.notes["true_refs"] == [blocked[o][1] for o in chain if o in blocked]  # in-order
+    assert task.notes["true_refs"] == [blocked[o][0] for o in chain if o in blocked]
 
 
-def test_compaction_check_shipment_chain_and_failure_carries_ref() -> None:
+def test_compaction_check_shipment_chain_and_large_failure_buries_ref() -> None:
     _, task = build_compaction_task(seed=2, n_orders=8, n_blocked=3)
     chain, blocked = task.notes["chain"], task.notes["blocked"]
     tools = make_compaction_tools(chain, blocked)
@@ -433,11 +433,13 @@ def test_compaction_check_shipment_chain_and_failure_carries_ref() -> None:
     first = dispatch(tools, "check_shipment", {"order_id": chain[0]})
     assert chain[1] in first.content
     assert "file_report" in dispatch(tools, "check_shipment", {"order_id": chain[-1]}).content
-    # a BLOCKED order is is_error and the ref is in the CONTENT (only there)
+    # a BLOCKED order is a LARGE is_error transcript with the ref buried inside (only there)
     boid = next(iter(blocked))
+    ref, _body = blocked[boid]
     r = dispatch(tools, "check_shipment", {"order_id": boid})
     assert r.is_error and r.error_type == "blocked"
-    assert blocked[boid][1] in r.content and blocked[boid][1] in r.extracted_ids
+    assert ref in r.content and ref in r.extracted_ids
+    assert len(r.content) > 800  # large enough that the model can't echo it wholesale
 
 
 def test_compaction_deterministic_and_file_report_write() -> None:
@@ -446,3 +448,14 @@ def test_compaction_deterministic_and_file_report_write() -> None:
     assert t1.prompt == t2.prompt and t1.notes["chain"] == t2.notes["chain"]  # deterministic
     (w,) = t1.expected_writes
     assert w.action == "file_report" and w.cardinality == 1
+
+
+def test_compaction_anticipation_iv_controls_the_prompt() -> None:
+    # the §1.2 boundary IV: upfront announces the ref requirement; revealed does NOT (only the
+    # terminal check_shipment result does) — same staged chain, different prompt.
+    _, up = build_compaction_task(seed=3, anticipated=True)
+    _, rev = build_compaction_task(seed=3, anticipated=False)
+    assert up.notes["chain"] == rev.notes["chain"]  # identical staging
+    assert "ref" in up.prompt and "file_report" in up.prompt  # requirement pre-announced
+    assert "ref" not in rev.prompt and "file_report" not in rev.prompt  # withheld until the end
+    assert up.ivs["anticipated"] is True and rev.ivs["anticipated"] is False

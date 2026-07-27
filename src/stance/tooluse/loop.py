@@ -85,6 +85,7 @@ def run_tool_loop(
     max_turns: int = 20,
     max_tokens: int = 2048,
     compaction: Compaction | None = None,
+    strip_reasoning: bool = False,
     raise_on_crash: bool = True,
 ) -> RunOutcome:
     """Run the agent over `task` with `tools`; log a `CallEvent` per turn and a
@@ -109,7 +110,14 @@ def run_tool_loop(
                 messages=messages,
                 max_tokens=max_tokens,
             )
-            messages.append({"role": "assistant", "content": response.content})  # full content
+            # Persist the assistant turn. `strip_reasoning` drops the model's between-call TEXT on
+            # tool-use turns (keeping only tool_use blocks) → its reasoning is NOT retained across
+            # turns (ephemeral-CoT regime), removing the self-preservation channel that lets the
+            # model carry tool-result content past compaction. Final answers keep their text.
+            content: Any = response.content
+            if strip_reasoning and response.stop_reason == "tool_use":
+                content = [b for b in response.content if getattr(b, "type", None) == "tool_use"]
+            messages.append({"role": "assistant", "content": content})
             usage = _usage(response.usage)
 
             # --- final-answer path ------------------------------------------

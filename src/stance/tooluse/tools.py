@@ -295,16 +295,18 @@ def make_compaction_tools(
 ) -> tuple[Tool, ...]:
     """Compaction-tier (§1.2) toolset. `check_shipment` walks a CHAIN — each result names the
     NEXT order to check, so the model can't batch (forces sequential turns → context accumulates
-    for the mid-loop compaction trigger). ~block_frac of orders are BLOCKED: each is_error carries
-    a required `ref` (in `blocked[order_id] = (reason, ref)`) that the final `file_report` must
-    include. The ref lives ONLY in the error CONTENT (not the action) — so a policy that drops the
-    failure loses it, so the failure treatment (preserve/flag/uniform) is the sole variable."""
+    for the mid-loop compaction trigger). ~block_frac of orders are BLOCKED: each is a LARGE
+    is_error transcript (`blocked[order_id] = (ref, body)`) with the required `ref` buried inside —
+    too large to echo wholesale, so a policy that drops the failure loses the ref, making the
+    failure treatment (preserve/flag/uniform) the sole variable."""
     order_of = {oid: i for i, oid in enumerate(chain)}
 
     def _next_hint(idx: int) -> str:
         if idx + 1 < len(chain):
             return f" Next, check shipment for {chain[idx + 1]}."
-        return " That was the last order — now call file_report with EVERY ref you collected."
+        # self-sufficient terminal reveal (works when the ref requirement was NOT pre-announced)
+        return (" That was the last order — now call file_report listing EVERY release ref from "
+                "the BLOCKED orders you checked.")
 
     def check_shipment(order_id: str) -> ToolResult:
         idx = order_of.get(order_id)
@@ -313,9 +315,8 @@ def make_compaction_tools(
                               is_error=True, error_type="not_found")
         hint = _next_hint(idx)
         if order_id in blocked:
-            reason, ref = blocked[order_id]
-            content = (f"BLOCKED: {order_id} is held for '{reason}'. Quote release ref {ref} in "
-                       f"the report to clear it.{hint}")
+            ref, body = blocked[order_id]
+            content = f"{body}{hint}"
             return ToolResult(content=content, is_error=True, error_type="blocked",
                               extracted_ids=[ref], size_tokens=_est_tokens(content))
         content = f"OK: {order_id} shipped normally; nothing to report.{hint}"

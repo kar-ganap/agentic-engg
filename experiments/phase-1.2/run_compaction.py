@@ -59,6 +59,21 @@ def _client(provider: str) -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=anthropic_api_key())
 
 
+def _make_complete(client: anthropic.Anthropic, bust_cache: bool) -> Any:
+    """complete_fn for run_tool_loop. `bust_cache` prepends a unique nonce to the system prompt
+    each call so DeepSeek's AUTO context-cache can't serve the stale (pre-compaction) prefix —
+    without it, content-level compaction/strip edits never reach the model (diag 2026-07-27)."""
+    n = {"i": 0}
+
+    def complete(**kw: Any) -> Any:
+        if bust_cache:
+            n["i"] += 1
+            kw = {**kw, "system": f"{kw['system']} [req {n['i']:05d}-nocache]"}
+        return client.messages.create(**kw)
+
+    return complete
+
+
 def _sig(e: CallEvent) -> str:
     return f"{e.tool_called}|{json.dumps(e.arguments or {}, sort_keys=True)}"
 
@@ -91,20 +106,26 @@ def main() -> None:
     ap.add_argument("--max-turns", type=int, default=16)
     ap.add_argument("--n-orders", type=int, default=9)
     ap.add_argument("--n-blocked", type=int, default=3)  # ~1-in-3 blocked (each carries a ref)
+    ap.add_argument("--reasoning", default="persist,strip")  # the decisive §1.2 IV (self-rescue)
+    ap.add_argument("--anticipation", default="upfront")  # held fixed (upfront: agent collects)
     ap.add_argument("--go", action="store_true")
+    ap.add_argument("--bust-cache", action="store_true",  # required on DeepSeek (auto-cache)
+                    help="nonce the prefix each call so content edits reach the model")
     ap.add_argument("--arm-provider", default="deepseek")
     ap.add_argument("--arm-model", default="deepseek-v4-flash")
     args = ap.parse_args()
 
     policies = [p.strip() for p in args.policies.split(",")]
     seeds = [int(s) for s in args.seeds.split(",")]
-    cells = [(p, s) for p in policies for s in seeds]
-    print(f"policies={policies} seeds={seeds} cells={len(cells)}  "
-          f"{args.arm_provider}/{args.arm_model}")
+    antis = [a.strip() for a in args.anticipation.split(",")]  # upfront=anticipated, revealed=not
+    reasonings = [r.strip() for r in args.reasoning.split(",")]  # persist vs strip (ephemeral CoT)
+    cells = [(p, a, r, s) for p in policies for a in antis for r in reasonings for s in seeds]
+    print(f"policies={policies} reasoning={reasonings} anticipation={antis} seeds={seeds} "
+          f"cells={len(cells)}  {args.arm_provider}/{args.arm_model}")
     print(f"budget={args.budget_tokens} keep_last={args.keep_last} max_turns={args.max_turns} "
           f"n_orders={args.n_orders} n_blocked={args.n_blocked}  loop_guard=OFF")
     if not args.go:
-        print("DRY-RUN — pass --go. PRIMARY DV = ref-recall (failure-info survival, mechanical).")
+        print("DRY-RUN — pass --go. PRIMARY DV = ref-recall × reasoning{persist,strip}.")
         return
 
     RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -116,39 +137,42 @@ def main() -> None:
         p.unlink(missing_ok=True)
     logger = EventLogger(events_path=ev_path, runs_path=run_path)
     refs = RefStore(RAW_DIR / "refs")
-    client = _client(args.arm_provider)
+    complete_fn = _make_complete(_client(args.arm_provider), args.bust_cache)
 
     tasks: dict[str, TaskInstance] = {}
-    compactions: dict[str, int] = {}
+    # run_id -> (policy, anti, reasoning, seed, n_compactions)
+    meta: dict[str, tuple[str, str, str, int, int]] = {}
     rows: list[dict[str, Any]] = []
-    for i, (policy, seed) in enumerate(cells, 1):
-        _, task = build_compaction_task(seed=seed, n_orders=args.n_orders, n_blocked=args.n_blocked)
+    for i, (policy, anti, reasoning, seed) in enumerate(cells, 1):
+        _, task = build_compaction_task(seed=seed, n_orders=args.n_orders,
+                                        n_blocked=args.n_blocked, anticipated=(anti == "upfront"))
         tools = make_compaction_tools(task.notes["chain"], task.notes["blocked"])
-        run_id = f"{policy}-s{seed}"
+        run_id = f"{policy}-{anti}-{reasoning}-s{seed}"
         tasks[run_id] = task
         comp = Compaction(policy=policy, budget_tokens=args.budget_tokens,
                           keep_last_turns=args.keep_last)
         out = run_tool_loop(
             task=task.prompt, system=SYSTEM, tools=tools, model=args.arm_model,
-            complete_fn=lambda **kw: client.messages.create(**kw), logger=logger, refs=refs,
-            run_id=run_id, cell_id=policy, task_id=run_id, seed=seed, terminal_style="crisp",
-            loop_guard=False, max_turns=args.max_turns, max_tokens=1024, compaction=comp,
-            raise_on_crash=True,
+            complete_fn=complete_fn, logger=logger, refs=refs,
+            run_id=run_id, cell_id=f"{policy}-{reasoning}", task_id=run_id, seed=seed,
+            terminal_style="crisp", loop_guard=False, max_turns=args.max_turns, max_tokens=1024,
+            compaction=comp, strip_reasoning=(reasoning == "strip"), raise_on_crash=True,
         )
-        compactions[run_id] = out.n_compactions
-        print(f"[{i}/{len(cells)}] {policy} s{seed}: {out.terminal_status} "
+        meta[run_id] = (policy, anti, reasoning, seed, out.n_compactions)
+        print(f"[{i}/{len(cells)}] {policy} {reasoning} s{seed}: {out.terminal_status} "
               f"compactions={out.n_compactions}")
 
     by_run, runs = read_runs(ev_path, run_path)
     for run_id, task in tasks.items():
         ev = by_run.get(run_id, [])
         summ = score(ev, runs[run_id], task)
-        policy, seed = run_id.rsplit("-s", 1)
+        policy, anti, reasoning, seed, n_comp = meta[run_id]
         rows.append({
-            "policy": policy, "seed": int(seed), "ref_recall": _ref_recall(ev, task),
+            "policy": policy, "reasoning": reasoning, "anticipated": anti, "seed": seed,
+            "ref_recall": _ref_recall(ev, task),
             "filed": int(summ.success), "failure_recurrence": _failure_recurrence(ev),
             "n_errors": sum(1 for e in ev if e.is_error), "achieved_depth": summ.achieved_depth,
-            "n_compactions": compactions[run_id],
+            "n_compactions": n_comp,
             "terminal_status": summ.terminal_status, "cost_usd": summ.total_cost_usd,
             "arm_provider": args.arm_provider, "arm_model": args.arm_model,
         })
@@ -158,20 +182,21 @@ def main() -> None:
         for r in rows:
             f.write(json.dumps(r) + "\n")
 
-    by_policy: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    by_cell: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for r in rows:
-        by_policy[r["policy"]].append(r)
-    print(f"\n§1.2 compaction by policy -> {out_path.name}")
-    print(f"{'policy':<20} {'ref-recall':>10} {'filed':>6} {'compact':>8} {'errs':>5} {'$':>8}")
-    for policy in policies:
-        rs = by_policy.get(policy, [])
-        if not rs:
-            continue
-        print(f"{policy:<20} {mean(r['ref_recall'] for r in rs):>10.2f} "
-              f"{mean(r['filed'] for r in rs):>6.2f} "
-              f"{mean(r['n_compactions'] for r in rs):>8.1f} "
-              f"{mean(r['n_errors'] for r in rs):>5.1f} "
-              f"${sum(r['cost_usd'] for r in rs):>7.4f}")
+        by_cell[(r["reasoning"], r["policy"])].append(r)
+    print(f"\n§1.2 compaction: ref-recall by reasoning × policy -> {out_path.name}")
+    print(f"{'reasoning':<10} {'policy':<20} {'ref-recall':>10} {'filed':>6} "
+          f"{'compact':>8} {'$':>8}")
+    for reasoning in reasonings:
+        for policy in policies:
+            rs = by_cell.get((reasoning, policy), [])
+            if not rs:
+                continue
+            print(f"{reasoning:<10} {policy:<20} {mean(r['ref_recall'] for r in rs):>10.2f} "
+                  f"{mean(r['filed'] for r in rs):>6.2f} "
+                  f"{mean(r['n_compactions'] for r in rs):>8.1f} "
+                  f"${sum(r['cost_usd'] for r in rs):>7.4f}")
 
 
 if __name__ == "__main__":
