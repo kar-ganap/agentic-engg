@@ -194,8 +194,15 @@ def run_tool_loop(
             messages.append({"role": "user", "content": tool_result_blocks})
 
             # --- mid-loop compaction (§1.2; off unless configured) ----------
-            # Trigger on fill-at-use crossing the budget; compact BEFORE the next call sees it.
-            if compaction is not None and usage["input_tokens"] >= compaction.budget_tokens:
+            # Trigger on the FULL context size crossing the budget; compact before the next call.
+            # Under prompt-caching `input_tokens` is only the uncached delta, so the true fill must
+            # add the cached prefix (cache_read + cache_creation) — cf. score._fill / §1.1.
+            fill = (
+                usage["input_tokens"]
+                + usage["cache_read_input_tokens"]
+                + usage["cache_creation_input_tokens"]
+            )
+            if compaction is not None and fill >= compaction.budget_tokens:
                 messages = compact(
                     messages, compaction.policy, keep_last_turns=compaction.keep_last_turns
                 )

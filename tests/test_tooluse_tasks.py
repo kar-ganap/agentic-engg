@@ -13,6 +13,7 @@ import random
 from stance.tooluse.domain import gen_amount
 from stance.tooluse.tasks.binding import build_binding_task
 from stance.tooluse.tasks.chain import build_chain_task
+from stance.tooluse.tasks.compaction import build_compaction_task
 from stance.tooluse.tasks.diffuse import build_diffuse_task
 from stance.tooluse.tasks.format import build_format_task
 from stance.tooluse.tasks.loopguard import build_loopguard_task
@@ -26,7 +27,13 @@ from stance.tooluse.tasks.refund import (
 )
 from stance.tooluse.tasks.rolebind import _POOLS, build_rolebind_task
 from stance.tooluse.tasks.selection import build_selection_task
-from stance.tooluse.tools import dispatch, make_refund_tools, make_selection_tools, make_tools
+from stance.tooluse.tools import (
+    dispatch,
+    make_compaction_tools,
+    make_refund_tools,
+    make_selection_tools,
+    make_tools,
+)
 
 
 def test_needle_is_produced_by_get_order() -> None:
@@ -405,3 +412,37 @@ def test_diffuse_high_cue_is_the_distinctive_control() -> None:
     assert high.notes["target_description"] == low.notes["target_description"]  # same target
     assert high.notes["cue"] != low.notes["cue"]  # control uses the distinctive (high-disc) cue
     assert not shared_stems(high.notes["cue"], high.notes["target_description"])  # still no leak
+
+
+# --- compaction tier (§1.2): breadcrumb-chain, high-signal failures -----------------------
+def test_compaction_stages_chain_with_blocked_refs() -> None:
+    _, task = build_compaction_task(seed=1, n_orders=9, n_blocked=3)
+    chain = task.notes["chain"]
+    blocked = task.notes["blocked"]
+    assert len(chain) == 9 and len(set(chain)) == 9  # distinct chain
+    assert len(blocked) == 3 and chain[0] not in blocked  # 3 blocked, never the first
+    assert set(blocked) <= set(chain)  # blocked are chain orders
+    assert task.notes["true_refs"] == [blocked[o][1] for o in chain if o in blocked]  # in-order
+
+
+def test_compaction_check_shipment_chain_and_failure_carries_ref() -> None:
+    _, task = build_compaction_task(seed=2, n_orders=8, n_blocked=3)
+    chain, blocked = task.notes["chain"], task.notes["blocked"]
+    tools = make_compaction_tools(chain, blocked)
+    # each result names the next order (forces sequential) + last order points to file_report
+    first = dispatch(tools, "check_shipment", {"order_id": chain[0]})
+    assert chain[1] in first.content
+    assert "file_report" in dispatch(tools, "check_shipment", {"order_id": chain[-1]}).content
+    # a BLOCKED order is is_error and the ref is in the CONTENT (only there)
+    boid = next(iter(blocked))
+    r = dispatch(tools, "check_shipment", {"order_id": boid})
+    assert r.is_error and r.error_type == "blocked"
+    assert blocked[boid][1] in r.content and blocked[boid][1] in r.extracted_ids
+
+
+def test_compaction_deterministic_and_file_report_write() -> None:
+    _, t1 = build_compaction_task(seed=7, n_orders=9, n_blocked=3)
+    _, t2 = build_compaction_task(seed=7, n_orders=9, n_blocked=3)
+    assert t1.prompt == t2.prompt and t1.notes["chain"] == t2.notes["chain"]  # deterministic
+    (w,) = t1.expected_writes
+    assert w.action == "file_report" and w.cardinality == 1

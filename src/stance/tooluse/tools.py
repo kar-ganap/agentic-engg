@@ -289,6 +289,57 @@ def make_selection_tools(
     return tuple(tools)
 
 
+# --- compaction tier (§1.2): a breadcrumb CHAIN carrying high-signal failures ---------------
+def make_compaction_tools(
+    chain: Sequence[str], blocked: dict[str, tuple[str, str]]
+) -> tuple[Tool, ...]:
+    """Compaction-tier (§1.2) toolset. `check_shipment` walks a CHAIN — each result names the
+    NEXT order to check, so the model can't batch (forces sequential turns → context accumulates
+    for the mid-loop compaction trigger). ~block_frac of orders are BLOCKED: each is_error carries
+    a required `ref` (in `blocked[order_id] = (reason, ref)`) that the final `file_report` must
+    include. The ref lives ONLY in the error CONTENT (not the action) — so a policy that drops the
+    failure loses it, so the failure treatment (preserve/flag/uniform) is the sole variable."""
+    order_of = {oid: i for i, oid in enumerate(chain)}
+
+    def _next_hint(idx: int) -> str:
+        if idx + 1 < len(chain):
+            return f" Next, check shipment for {chain[idx + 1]}."
+        return " That was the last order — now call file_report with EVERY ref you collected."
+
+    def check_shipment(order_id: str) -> ToolResult:
+        idx = order_of.get(order_id)
+        if idx is None:
+            return ToolResult(content=render_error("not_found", f"order {order_id}"),
+                              is_error=True, error_type="not_found")
+        hint = _next_hint(idx)
+        if order_id in blocked:
+            reason, ref = blocked[order_id]
+            content = (f"BLOCKED: {order_id} is held for '{reason}'. Quote release ref {ref} in "
+                       f"the report to clear it.{hint}")
+            return ToolResult(content=content, is_error=True, error_type="blocked",
+                              extracted_ids=[ref], size_tokens=_est_tokens(content))
+        content = f"OK: {order_id} shipped normally; nothing to report.{hint}"
+        return ToolResult(content=content, size_tokens=_est_tokens(content))
+
+    def file_report(refs: list[str]) -> ToolResult:
+        shown = ", ".join(refs) if refs else "(none)"
+        return ToolResult(content=f"Report filed with {len(refs)} ref(s): {shown}.",
+                          extracted_ids=list(refs), size_tokens=_est_tokens(shown))
+
+    check_schema = {"type": "object", "properties": {"order_id": {"type": "string"}},
+                    "required": ["order_id"]}
+    report_schema = {"type": "object",
+                     "properties": {"refs": {"type": "array", "items": {"type": "string"}}},
+                     "required": ["refs"]}
+    return (
+        Tool("check_shipment",
+             "Check one order's shipment status; the result names the next order to check.",
+             check_schema, check_shipment),
+        Tool("file_report", "File the consolidated report with all collected release refs.",
+             report_schema, file_report),
+    )
+
+
 # --- refund tier (#4-v2): self-generated semantic role-binding interference ---
 # `return_shape` is the #4ii fix lever (how apply_adjustment re-states each binding);
 # `doc_quality` is the competing lever (tool-description guidance) for the ordering test.

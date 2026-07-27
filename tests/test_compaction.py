@@ -166,3 +166,29 @@ def test_compaction_does_not_fire_below_budget(tmp_path: Path) -> None:
     out, seen = _bad_lookup_run(tmp_path, comp, [100, 100, 9000, 9000, 9000])
     assert out.n_compactions == 0
     assert not _stub_seen(seen)
+
+
+def test_compaction_trigger_counts_cached_context(tmp_path: Path) -> None:
+    """Regression: under prompt-caching input_tokens is only the uncached DELTA. The trigger must
+    use the full fill (input + cache_read + cache_creation), else it never fires on a cached run."""
+    logger, refs = _harness(tmp_path)
+    n = {"i": 0}
+
+    def fn(**kw: Any) -> SimpleNamespace:
+        n["i"] += 1
+        # tiny uncached delta, big cached prefix → full fill (5050) crosses budget, input (50) never
+        u = SimpleNamespace(input_tokens=50, output_tokens=5,
+                            cache_read_input_tokens=5000, cache_creation_input_tokens=0)
+        if n["i"] <= 3:
+            blk: Any = ToolUseBlock(type="tool_use", id=f"t{n['i']}", name="get_order",
+                                    input={"order_id": f"O-BAD-{n['i']}"})
+            return SimpleNamespace(content=[blk], stop_reason="tool_use", usage=u)
+        return SimpleNamespace(content=[TextBlock(type="text", text="done", citations=None)],
+                               stop_reason="end_turn", usage=u)
+
+    comp = Compaction(policy="summarize_uniform", budget_tokens=1000, keep_last_turns=1)
+    out = run_tool_loop(
+        task="x", system="s", tools=_tools(), model="m", complete_fn=fn, logger=logger, refs=refs,
+        run_id="rcache", loop_guard=False, max_turns=8, compaction=comp,
+    )
+    assert out.n_compactions >= 1  # input_tokens=50 never crosses 1000, but 50+5000 does
