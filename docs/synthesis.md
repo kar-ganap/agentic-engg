@@ -91,9 +91,12 @@ model*, not "swapping exists" or "caching helps." See `results-3.md` § Prior ar
 
 **Stance:** Failure events in agent trajectories (tool errors, model refusals, malformed outputs) carry high information density per token. Compaction strategies should *preserve* failure events (or treat them as priority preservation candidates) and *condense* successful intermediate work — not the reverse. The standard "summarize old history into a paragraph" pattern is an anti-pattern when applied uniformly to failures.
 
-**Confidence:** 65.
+**Confidence:** 74 (candidate). Trajectory **65 (literature-only) → 68 (prereg) → 74 (own-substrate confirmed, conditional)**. Legs: persist-null-cross-provider **80** · preserve-beats-summarize-under-strip **78** · verbatim-not-signal **75** · bite-single-provider **55** · regime-generality **55**.
+
+**Own-substrate result (Phase 1.2 Thread B, Haiku 2×3 × 5 seeds):** the key discovery is that **reasoning-persistence is the boundary**. A breadcrumb-chain audit with ~530-token BLOCKED transcripts (a release ref buried inside) under mid-loop compaction; DV = ref-recall (mechanical). Under **`strip`** (the model's reasoning NOT persisted across turns): preserve **1.00** vs summarize **0.13** (flag ≡ uniform), consistent every seed → **§1.2 bites**. Under **`persist`** (default): flat **1.00** everywhere — the model self-rescues the ref into its own reasoning, which compaction never touches → **null**, corroborated cross-provider (Haiku + DeepSeek v4-flash). So *preserve failures verbatim matters only when the agent's reasoning is ephemeral*. Two clauses resolved: **the down-5–10 "preserve the SIGNAL not the format" softening is REFUTED** — `flag` (a one-line signal) ≡ `uniform` (0.13), because the needed datum lives in the failure *body*; it is the **verbatim** failure that matters. The **bite is single-provider** (DeepSeek's stateful `reasoning_content` pins it to `persist` — un-ablatable, lessons §0.27); the **null is cross-provider**. `results-compaction.md`; graph `ev-compaction`.
 
 **Preconditions (where this position is meant to apply):**
+- **Reasoning-persistence (NEW, load-bearing):** the benefit requires the agent's own reasoning NOT to carry the failure signal forward — i.e. ephemeral / not-replayed CoT. With persisted reasoning the model self-rescues and preservation is redundant.
 - **Pivot:** Multi-turn agent loops AND failure events actually occur in the workflow (if everything succeeds first try, the claim is vacuous).
 - **Model class:** Frontier-class models trained for in-context behavioral adaptation (RLHF + instruction-tuned). Doesn't transfer to weaker models that don't update behavior from in-context feedback.
 - **Failure quality:** Error messages are structured/informative enough for the model to extract a behavioral signal ("rate limit exceeded, retry after 60s" works; bare "Error" does not).
@@ -125,7 +128,7 @@ model*, not "swapping exists" or "caching helps." See `results-3.md` § Prior ar
 
 **Tool-result clearing (Anthropic corroboration + §1.2 refinement):** Anthropic recommends tool-result clearing as "the safest, lightest-touch compaction" — once a tool is called deep in history, the raw result is spent. This corroborates §1.2's "condense successes." **But §1.2 refines the blanket version:** clear spent *successes* (pure distractors, §5.2); preserve a compact *failure* signal (the corrective lesson). Tension with Anthropic's default framing ("why would the agent need the raw result again?") — for a *failure*, per §1.2, it might. Reconciled by §1.2's down-5–10 softened form: clear the raw payload, keep a failure summary. Tested in §3.7.
 
-**Status:** candidate (pre-2.0); directly testable in Phase 1.0 exercise 2 (compaction). Registered 2026-06-01. Preconditions added 2026-06-01.
+**Status:** candidate (own-substrate, 74). Registered 2026-06-01 (literature-only 65); preconditions added 2026-06-01; **own-substrate tested Phase 1.2 Thread B, 2026-07-27** — pre-registered at 68, confirmed to 74 (conditional on ephemeral reasoning; verbatim not signal; single-provider bite / cross-provider null). Path to *active*: replicate the bite on a **non-reasoning 2nd provider** + a **downstream task-success DV** (not info-survival) + a **less-engineered failure** (natural, not a buried random datum).
 
 ---
 
@@ -387,7 +390,9 @@ Load-bearing only in the **intersection** of:
 
 **Open empirical question:** At what point does failure accumulation cross over from useful supervision to rot? Plausibly depends on task length and total turn count.
 
-**To test:** In Phase 1.0 exercise 1 (context-rot curve), include a variant where the padding is *failure-shaped tokens* (synthetic tool_use → error pairs) vs. random text. Does the curve shape differ?
+**Mechanism-level resolution (Phase 1.2 Thread B, §1.2 own-substrate):** the two aren't opposed — they **partition by what carries the signal**. Chroma's "rot" is why *all* compaction arms drop spent-success payloads (successes are distractors, §5.2). Manus's "keep failures in" is right *specifically when the model can't otherwise recover the failure's signal* — i.e. **ephemeral reasoning + a large, un-extractable failure** (there, preserve=1.00 ref-recall vs summarize=0.13). When reasoning is persisted, the model self-rescues the failure signal into its own tokens and preservation is redundant (null, cross-provider). So the normative rule sharpens to: *evict low-signal content always; preserve a failure iff the model won't self-rescue it.* `results-compaction.md`; §1.2.
+
+**To test (residual):** the crossover point (failure accumulation → rot) as a function of turn count is still open; and the bite needs a **non-reasoning 2nd provider** + a **downstream-task DV** (not info-survival) to reach *active*.
 
 ---
 

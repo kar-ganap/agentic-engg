@@ -22,7 +22,7 @@
 | workflow patterns (5) | 0 | PARTIAL (skim) | — | evaluator-optimizer ≈ reflection (done 2.0); orchestrator-worker → 2.4 |
 | context-rot curve (Ex1) | 1 | COVERED | 1.0 | `rot/` + §1.8 — exceeded spec |
 | KV-cache break/restore (Ex4) | 1 | COVERED | 1.0-ext | Exercise B; §1.1 / §3.3 |
-| **compaction + fresh-window (Ex2)** | 1 | **GAP → in progress** | **1.2** | no code existed; unblocks §1.2/§2.1; Thread B |
+| compaction + fresh-window (Ex2) | 1 | **COVERED** | 1.2 | `compaction.py` (TDD) + loop hook; §1.2 candidate 74; the *fresh-window* half → M7/8 memory (deferred) |
 | SELF-ROUTE RAG-vs-LC (Ex3) | 1 | DEFERRED | 3.3 (M8) | clean, homed |
 | tool-selection + namespacing (#2) | 2 | **COVERED** | 1.2 | §1.10 candidate **78**; lexical verb-capture (not count), cross-provider (DeepSeek+Haiku), verb-swap causal. Path to active: 2nd template/verb-pair |
 | **held-out tool eval set** | 2 | **GAP** | **2.1** | curriculum-required; the eval-mislabel twin |
@@ -37,7 +37,7 @@
 
 | position | status | target | note |
 |---|---|---|---|
-| §1.2 keep-errors-in | literature-only (65) | **1.2** | compaction unblocks it (Thread B) |
+| §1.2 keep-errors-in | **candidate (74)** | 1.2 | own-substrate (Haiku); conditional on ephemeral reasoning; verbatim>signal; persist-null cross-provider. To *active*: non-reasoning 2nd provider + downstream DV |
 | §1.4 recitation | literature-only (60) | future | cheap standalone (hypothesis §3.2) |
 | §1.7 diversity | literature-only (50) | future | §3.5 three-arm; the compaction diversity_placebo touches it |
 | §1.6 filesystem-as-context | tension §2.3 | 3.0/3.1 | Garry vs Manus — memory phases |
