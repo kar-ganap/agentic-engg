@@ -155,6 +155,12 @@ These are the rules that survive across phases. Curated; not append-only. Anythi
 - **Multiplier corollary:** near-duplicate variants (one-word slots) read as obvious filler; vary the numbers *and the flaw itself* so variants look like distinct studies. And update the grading KEY to name the discount-the-flawed-evidence move, or the DV won't reward flaw-detection.
 - Generalizes **§0.20** (presence ≠ rivalry): silent-on-axis distractors are *present* but non-rival by construction.
 
+### §0.26 — A soft-deferred item that doubles as a filed position lapses silently; the bug is *un-re-deferred* deferral, not deferral
+**Trigger:** *Without this, a curriculum exercise / experiment that was ALSO pre-registered as a position gets soft-deferred ("→ later"), its target phase comes and goes with no re-defer, and it silently drops — the position stays filed-but-untested and nobody notices. It happened THREE times before a Module 0–2 fidelity audit caught it (2026-07-27): **compaction** (M1 Ex2 = §1.2, conf 65, literature-only — soft-deferred "→ ext/1.1", never run; no compaction code existed anywhere); **tool-selection/namespacing** (M2's named central exercise = pre-registered position #2 — built + unit-tested but invoked by no run script, dropped with no defer note); and the **Module-6 eval mislabel** (conflated the throughline re-eval property with the eval-methodology curriculum). With this, a **coverage ledger** (`tasks/coverage.md`) tracks every exercise + filed position with a TARGET PHASE, and a deferred item whose target phase has passed with no explicit re-defer is a **[STALE]** flag checked at every phase boundary — deferral stays cheap, but it cannot be silent.*
+- **Deferral is fine; un-re-deferred deferral is the bug.** A clean defer names a home and survives (SELF-ROUTE→M8; masking #1 stack-gated); a soft "→ later" with no home rots.
+- **The dangerous class is the item owed by two ledgers** — both a curriculum exercise AND a filed position — so it falls between the curriculum tracker and the synthesis and neither catches it.
+- **An independent coverage check beats self-audit.** My own first pass was position-first-biased — I named RAG-vs-LC as the M1 gap; the audit found the real gap was *compaction*, which I'd missed. (Generalizes the three-reviewer-pass discipline to *coverage*, not just correctness.)
+
 ---
 
 ## Phase-specific notes (chronological)
