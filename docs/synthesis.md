@@ -335,6 +335,27 @@ Load-bearing only in the **intersection** of:
 
 ---
 
+### §1.9 — No universal best reasoning pattern; match the pattern to the debate's epistemic structure
+
+**Stance:** for evidence-based position-forming there is no universal best reasoning loop (baseline / ReAct / ReWOO-plan-execute / Self-Refine); effectiveness is the alignment between a pattern's **inductive bias** and the debate's **epistemic structure**. Two mechanisms are **earned** (survived a confound-removing re-test): **(1) reflection = systematic caution** — it uniformly lowers confidence (survives a *neutral* critique, so not a keyword artifact), which *miscalibrates* confident-convergent debates (§1.8: under-hedges to 61 vs 80, loses) but *correctly reins in* the overclaiming a hedge debate induces (§3.8: holds the ~45 hedge, wins); **(2) retrieving a subset beats stuffing the full set** under §1.8 diffuse on-axis dilution (baseline collapses to 3.6@N=24, pulled to length) — but **generic** (plan-execute ≈ react). §1.1 is a **null** (a robust single fact — cache-economics ~7× — is undilutable; all arms flat). So "2 regimes (dilution / overclaiming) + 1 null," and every arm has a debate it is clearly bad at.
+
+**Confidence:** 63 (candidate). Legs: no-universal-winner **65** · reflection-systematic-caution **65** · retrieve-beats-stuff-under-dilution **62** · bias×structure **58** · regime-taxonomy **40**. Trajectory **40 (prereg) → 62 (first sweep, over-claimed) → 50 (three-reviewer pass) → 58 (confound-removed re-test) → 63 (cross-provider: Kimi K3 replicates both mechanisms)**. Capped now by: an **unvalidated fuzzy grader**, n=5, and only **1–2 debates per regime** — single-provider is *discharged* (DeepSeek v4-flash + Kimi K3 both confirm).
+
+**Cross-provider (Kimi K3 vs DeepSeek, §1.8+§3.8):** both earned mechanisms replicate on a very different family (2.8T flagship). reflection-caution holds — Δ−10 conf vs baseline (DeepSeek −15), holds the §3.8 hedge (conf 46–54 ≈ 45), wins §3.8 — *once the measurement is clean* (K3's verbose 3-call reflection needed an 8192 cap; at 4096 it burned the budget on reasoning with empty answers, 7/20 parse-fails → 2/19 @8192 — a precondition, not a mechanism failure). retrieve>stuff holds (retrieve arms > collapsed baseline on both). Graph: `ev-reason-xprovider`.
+
+**Refuted (kept in the trajectory):** plan-execute's "commit-to-few sidesteps dilution" was **teaser-triage** — with an anonymized presentation (uniform ids/labels, no id-prefix or content tell) plan reads blind and plan ≈ react (order flips by N). The prereg's "pick one loop" and "react ≥ plan" bets are refuted; "reflection < reputation" is refined to *systematic caution*.
+
+**Retraction:** demote if one arm dominates ≥4/5 debate types in a wider set (−25); if reflection's caution fails to replicate cross-provider (−20); if retrieve>stuff-under-dilution fails cross-provider (−15). Promote (+15) if a regime's winner replicates on a second debate **and** cross-provider.
+
+**Preconditions:** the §0.25 re-test design — on-axis non-decisive-by-flaw distractors, **anonymized** presentation (defeats triage), neutral critique, prose-scored EVIDENCE_USE; DeepSeek-v4-flash arms + Sonnet-5 fuzzy judge; 5 seeds, N∈{4,12,24}.
+
+**Prior art** (reference classes a domain reviewer would demand; verify IDs firsthand per §0.16 before the capstone): arms are ReAct (Yao et al., arXiv:2210.03629), ReWOO / Plan-and-Solve (Xu et al., 2305.18323; Wang et al., 2305.04091), **Self-Refine** (Madaan et al., 2303.17651 — the "reflection" arm is Self-Refine, *not* Reflexion). reflection=caution instantiates the **self-correction-limits** result (Huang et al., 2310.01798; Kamoi et al., 2406.01297: intrinsic critique degrades correct answers, helps only tasks "suited to it" — here, the hedge). The overclaiming baseline is the **RLHF-calibration** finding (Tian et al., 2305.14975). Dilution is the **distraction** literature (Shi et al., 2302.00093; Cuconasu et al., 2401.14887 — *near* distractors most harmful = §0.25). "No universal winner" is field **consensus**, so the novelty is the *epistemic-structure taxonomy*.
+
+**Supporting evidence:** `experiments/phase-2.0/results-reasoning.md` (incl. the #retest section); graph `ev-reason-{sd,ts,cf,refl,retest}` + warranted supports.
+
+**Status:** candidate. Registered 2026-06-29 (prereg 40); over-claimed to 62 (first sweep); corrected to 50 (three-reviewer pass — mechanism legs = artifacts); re-earned to 58 (confound-removed re-test — reflection earned, plan commit-to-few refuted); firmed to 63 on **cross-provider confirmation** (Kimi K3 replicates both mechanisms), 2026-07-26. Path to *active*: a **human-validated grader** + a **second debate per regime**.
+---
+
 ## §2 — Open tensions
 
 ### §2.1 — Manus "keep the wrong stuff in" vs. Chroma context rot

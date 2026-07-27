@@ -48,3 +48,12 @@ def has_deepseek_key() -> bool:
 
 def deepseek_api_key() -> str:
     return get_secret("DEEPSEEK_API_KEY")
+
+
+def has_moonshot_key() -> bool:
+    """True iff MOONSHOT_API_KEY is defined in `.env` (shell is not consulted)."""
+    return bool(dotenv_values(_ENV_PATH).get("MOONSHOT_API_KEY"))
+
+
+def moonshot_api_key() -> str:
+    return get_secret("MOONSHOT_API_KEY")
