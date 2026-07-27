@@ -72,6 +72,10 @@ The re-test **anonymized** the evidence presentation (uniform `item-NN` ids + a 
 
 **Net:** one artifact killed, one mechanism earned → `reasoning-pattern` **50 → 58, candidate** (trajectory 40 → 62 → 50 → 58). This is the discipline's full arc in one phase: pre-register → over-claim → catch-the-confound → re-test → re-earn. The two-round correction (pass *then* re-test) is the sharpest case yet that a critical-boundary review is worth its cost.
 
+### Cross-provider firm (2026-07-26) — 58 → 63
+
+The position's #1 caveat (single-provider) was closed by swapping the arms to **Kimi K3** (2.8T flagship — a very different family) with the judge held at Sonnet. **Both earned mechanisms replicate**: reflection=systematic-caution holds on clean data (Δ−10 conf vs baseline, holds the §3.8 hedge, wins §3.8) and retrieve>stuff-under-dilution holds. *Caveat-turned-finding:* K3's verbose 3-call reflection burned even 4096 tokens on reasoning with **empty visible answers** (7/20 parse-fails); an **8192 cap** fixed it (2/19), so the first-pass "weaker" read was measurement, not mechanism → a **very-verbose-model precondition**. Single-provider **discharged** → **58 → 63, candidate** (trajectory 40→62→50→58→63). Path to *active*: a **human-validated grader** + a **2nd debate per regime**. Cost note: the K3 flagship run was ~$12.6 → cumulative ~$96, **near the $100 cap** (raise or budget the next phase deliberately). *Also this session:* a curriculum-fidelity audit (Modules 0–2) surfaced the "soft-defer-that's-also-a-position lapses" failure mode (compaction, selection) → **Phase 1.2 back-fill planned** (`snuggly-launching-graham.md`).
+
 ## Method wins (process-stream, → `tasks/lessons.md`)
 
 - **§0.25 (new)** — to induce competition, distractors must be **on-axis + non-decisive-by-explicit-flaw**; a "silent-on-the-axis" distractor guarantees triage-ability (the whole first sweep measured who-triages-best). Generalizes §0.20 (presence ≠ rivalry).
