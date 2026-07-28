@@ -1,34 +1,38 @@
-"""Evaluation harness — placeholder interfaces only. Grows in Phase 2.1 (Module 6).
+"""Evaluation harness (Phase 2.1, Module 6).
 
-Shapes are deliberately empty: the design decisions about what a Rubric records,
-what a TrajectoryLog stores, and how LLMJudge composes with deterministic
-verifiers are load-bearing and belong to Phase 2.1.
+The reserved placeholder Protocols (`TrajectoryLog`/`Rubric`/`LLMJudge`) are now **superseded** by
+the concrete deterministic-vs-probabilistic verifier split in `verify` — the shapes their docstrings
+deferred to Phase 2.1. `accuracy` is the deterministic normalized-containment slice (Phase 1.0).
 """
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from stance.eval.accuracy import accuracy, is_hit, normalize
+from stance.eval.verify import (
+    CitesEvidence,
+    Containment,
+    DeterministicVerifier,
+    EvalReport,
+    HasRetraction,
+    JudgeVerifier,
+    Parseable,
+    ProbabilisticVerifier,
+    Verdict,
+    evaluate,
+)
 
-
-@runtime_checkable
-class TrajectoryLog(Protocol):
-    """A record of an agent's turns + observations. Shape decided Phase 2.1."""
-
-    def turns(self) -> list[dict[str, Any]]: ...
-
-
-@runtime_checkable
-class Rubric(Protocol):
-    """A scoring rubric. Implementations arrive in Phase 2.1."""
-
-    def score(self, trajectory: TrajectoryLog) -> dict[str, float]: ...
-
-
-@runtime_checkable
-class LLMJudge(Protocol):
-    """LLM-as-judge interface. Wire-up in Phase 2.1."""
-
-    def evaluate(self, trajectory: TrajectoryLog, rubric: Rubric) -> dict[str, float]: ...
-
-
-__all__ = ["LLMJudge", "Rubric", "TrajectoryLog"]
+__all__ = [
+    "CitesEvidence",
+    "Containment",
+    "DeterministicVerifier",
+    "EvalReport",
+    "HasRetraction",
+    "JudgeVerifier",
+    "Parseable",
+    "ProbabilisticVerifier",
+    "Verdict",
+    "accuracy",
+    "evaluate",
+    "is_hit",
+    "normalize",
+]
