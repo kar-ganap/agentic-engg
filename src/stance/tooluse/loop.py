@@ -26,6 +26,7 @@ from typing import Any
 from anthropic.types import Message, ToolUseBlock
 
 from stance.tools import Tool
+from stance.tooluse.compaction import Compaction, compact
 from stance.tooluse.events import CallEvent, EventLogger, RefStore, RunRecord
 from stance.tooluse.tools import ToolResult, dispatch
 
@@ -43,6 +44,7 @@ class RunOutcome:
     run_id: str
     final_answer: str
     terminal_status: str
+    n_compactions: int = 0  # times the mid-loop compaction hook fired (0 unless compaction on)
 
 
 def _text(content: list[Any]) -> str:
@@ -82,6 +84,8 @@ def run_tool_loop(
     loop_guard: bool = True,
     max_turns: int = 20,
     max_tokens: int = 2048,
+    compaction: Compaction | None = None,
+    strip_reasoning: bool = False,
     raise_on_crash: bool = True,
 ) -> RunOutcome:
     """Run the agent over `task` with `tools`; log a `CallEvent` per turn and a
@@ -94,6 +98,7 @@ def run_tool_loop(
     final_ref: str | None = None
     note: str | None = None
     terminal_status = "max_turns"  # pessimistic default — overwritten only on an early exit
+    n_compactions = 0
     started = time.time()
 
     try:
@@ -105,7 +110,14 @@ def run_tool_loop(
                 messages=messages,
                 max_tokens=max_tokens,
             )
-            messages.append({"role": "assistant", "content": response.content})  # full content
+            # Persist the assistant turn. `strip_reasoning` drops the model's between-call TEXT on
+            # tool-use turns (keeping only tool_use blocks) → its reasoning is NOT retained across
+            # turns (ephemeral-CoT regime), removing the self-preservation channel that lets the
+            # model carry tool-result content past compaction. Final answers keep their text.
+            content: Any = response.content
+            if strip_reasoning and response.stop_reason == "tool_use":
+                content = [b for b in response.content if getattr(b, "type", None) == "tool_use"]
+            messages.append({"role": "assistant", "content": content})
             usage = _usage(response.usage)
 
             # --- final-answer path ------------------------------------------
@@ -188,6 +200,21 @@ def run_tool_loop(
                 terminal_status = "loop_guard"
                 break
             messages.append({"role": "user", "content": tool_result_blocks})
+
+            # --- mid-loop compaction (§1.2; off unless configured) ----------
+            # Trigger on the FULL context size crossing the budget; compact before the next call.
+            # Under prompt-caching `input_tokens` is only the uncached delta, so the true fill must
+            # add the cached prefix (cache_read + cache_creation) — cf. score._fill / §1.1.
+            fill = (
+                usage["input_tokens"]
+                + usage["cache_read_input_tokens"]
+                + usage["cache_creation_input_tokens"]
+            )
+            if compaction is not None and fill >= compaction.budget_tokens:
+                messages = compact(
+                    messages, compaction.policy, keep_last_turns=compaction.keep_last_turns
+                )
+                n_compactions += 1
     except Exception as e:  # unhandled throw = API hard-fail or code bug (NOT an agent failure)
         terminal_status = "crash"
         note = repr(e)
@@ -202,4 +229,7 @@ def run_tool_loop(
             )
         )
 
-    return RunOutcome(run_id=run_id, final_answer=final_answer, terminal_status=terminal_status)
+    return RunOutcome(
+        run_id=run_id, final_answer=final_answer, terminal_status=terminal_status,
+        n_compactions=n_compactions,
+    )

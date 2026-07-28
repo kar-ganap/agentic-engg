@@ -13,6 +13,8 @@ import random
 from stance.tooluse.domain import gen_amount
 from stance.tooluse.tasks.binding import build_binding_task
 from stance.tooluse.tasks.chain import build_chain_task
+from stance.tooluse.tasks.compaction import build_compaction_task
+from stance.tooluse.tasks.correction import build_correction_task
 from stance.tooluse.tasks.diffuse import build_diffuse_task
 from stance.tooluse.tasks.format import build_format_task
 from stance.tooluse.tasks.loopguard import build_loopguard_task
@@ -26,7 +28,14 @@ from stance.tooluse.tasks.refund import (
 )
 from stance.tooluse.tasks.rolebind import _POOLS, build_rolebind_task
 from stance.tooluse.tasks.selection import build_selection_task
-from stance.tooluse.tools import dispatch, make_refund_tools, make_selection_tools, make_tools
+from stance.tooluse.tools import (
+    dispatch,
+    make_compaction_tools,
+    make_correction_tools,
+    make_refund_tools,
+    make_selection_tools,
+    make_tools,
+)
 
 
 def test_needle_is_produced_by_get_order() -> None:
@@ -405,3 +414,78 @@ def test_diffuse_high_cue_is_the_distinctive_control() -> None:
     assert high.notes["target_description"] == low.notes["target_description"]  # same target
     assert high.notes["cue"] != low.notes["cue"]  # control uses the distinctive (high-disc) cue
     assert not shared_stems(high.notes["cue"], high.notes["target_description"])  # still no leak
+
+
+# --- compaction tier (§1.2): breadcrumb-chain, high-signal failures -----------------------
+def test_compaction_stages_chain_with_blocked_refs() -> None:
+    _, task = build_compaction_task(seed=1, n_orders=9, n_blocked=3)
+    chain = task.notes["chain"]
+    blocked = task.notes["blocked"]
+    assert len(chain) == 9 and len(set(chain)) == 9  # distinct chain
+    assert len(blocked) == 3 and chain[0] not in blocked  # 3 blocked, never the first
+    assert set(blocked) <= set(chain)  # blocked are chain orders
+    assert task.notes["true_refs"] == [blocked[o][0] for o in chain if o in blocked]
+
+
+def test_compaction_check_shipment_chain_and_large_failure_buries_ref() -> None:
+    _, task = build_compaction_task(seed=2, n_orders=8, n_blocked=3)
+    chain, blocked = task.notes["chain"], task.notes["blocked"]
+    tools = make_compaction_tools(chain, blocked)
+    # each result names the next order (forces sequential) + last order points to file_report
+    first = dispatch(tools, "check_shipment", {"order_id": chain[0]})
+    assert chain[1] in first.content
+    assert "file_report" in dispatch(tools, "check_shipment", {"order_id": chain[-1]}).content
+    # a BLOCKED order is a LARGE is_error transcript with the ref buried inside (only there)
+    boid = next(iter(blocked))
+    ref, _body = blocked[boid]
+    r = dispatch(tools, "check_shipment", {"order_id": boid})
+    assert r.is_error and r.error_type == "blocked"
+    assert ref in r.content and ref in r.extracted_ids
+    assert len(r.content) > 800  # large enough that the model can't echo it wholesale
+
+
+def test_compaction_deterministic_and_file_report_write() -> None:
+    _, t1 = build_compaction_task(seed=7, n_orders=9, n_blocked=3)
+    _, t2 = build_compaction_task(seed=7, n_orders=9, n_blocked=3)
+    assert t1.prompt == t2.prompt and t1.notes["chain"] == t2.notes["chain"]  # deterministic
+    (w,) = t1.expected_writes
+    assert w.action == "file_report" and w.cardinality == 1
+
+
+def test_compaction_anticipation_iv_controls_the_prompt() -> None:
+    # the §1.2 boundary IV: upfront announces the ref requirement; revealed does NOT (only the
+    # terminal check_shipment result does) — same staged chain, different prompt.
+    _, up = build_compaction_task(seed=3, anticipated=True)
+    _, rev = build_compaction_task(seed=3, anticipated=False)
+    assert up.notes["chain"] == rev.notes["chain"]  # identical staging
+    assert "ref" in up.prompt and "file_report" in up.prompt  # requirement pre-announced
+    assert "ref" not in rev.prompt and "file_report" not in rev.prompt  # withheld until the end
+    assert up.ivs["anticipated"] is True and rev.ivs["anticipated"] is False
+
+
+# --- correction tier (§1.2 behavioral): learn a format from a failure, apply it late ------
+def test_correction_stages_probe_and_measured_records() -> None:
+    _, task = build_correction_task(seed=1, n_distractor=7, n_measured=2)
+    recs = task.notes["records"]
+    assert "R1-TEST" in recs and task.notes["measured_ids"] == ["R2", "R3"]
+    for rid in ("R2", "R3"):
+        raw = recs[rid]
+        assert task.notes["true_codes"][rid] == raw[:3] + "-" + raw[3:]  # dash after 3 chars
+    assert len(task.notes["chain"]) == 7
+    w2 = next(w for w in task.expected_writes if w.args["record_id"] == "R2")
+    assert w2.action == "submit_record" and "-" in w2.args["code"]
+
+
+def test_correction_submit_enforces_format_teaches_rule_generically() -> None:
+    _, task = build_correction_task(seed=2)
+    recs, chain, bodies = task.notes["records"], task.notes["chain"], task.notes["chain_bodies"]
+    tools = make_correction_tools(recs, bodies, chain)
+    raw = recs["R2"]
+    bad = dispatch(tools, "submit_record", {"record_id": "R2", "code": raw})  # wrong (raw) submit
+    assert bad.is_error and bad.error_type == "invalid_format"
+    assert "dash after the first 3" in bad.content  # teaches the RULE
+    assert task.notes["true_codes"]["R2"] not in bad.content  # but NOT the record's own answer
+    ok = dispatch(tools, "submit_record", {"record_id": "R2", "code": raw[:3] + "-" + raw[3:]})
+    assert not ok.is_error and "accepted" in ok.content
+    first = dispatch(tools, "check_shipment", {"order_id": chain[0]})  # distractor walks the chain
+    assert chain[1] in first.content and not first.is_error

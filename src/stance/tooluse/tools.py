@@ -289,6 +289,111 @@ def make_selection_tools(
     return tuple(tools)
 
 
+# --- compaction tier (§1.2): a breadcrumb CHAIN carrying high-signal failures ---------------
+def make_compaction_tools(
+    chain: Sequence[str], blocked: dict[str, tuple[str, str]]
+) -> tuple[Tool, ...]:
+    """Compaction-tier (§1.2) toolset. `check_shipment` walks a CHAIN — each result names the
+    NEXT order to check, so the model can't batch (forces sequential turns → context accumulates
+    for the mid-loop compaction trigger). ~block_frac of orders are BLOCKED: each is a LARGE
+    is_error transcript (`blocked[order_id] = (ref, body)`) with the required `ref` buried inside —
+    too large to echo wholesale, so a policy that drops the failure loses the ref, making the
+    failure treatment (preserve/flag/uniform) the sole variable."""
+    order_of = {oid: i for i, oid in enumerate(chain)}
+
+    def _next_hint(idx: int) -> str:
+        if idx + 1 < len(chain):
+            return f" Next, check shipment for {chain[idx + 1]}."
+        # self-sufficient terminal reveal (works when the ref requirement was NOT pre-announced)
+        return (" That was the last order — now call file_report listing EVERY release ref from "
+                "the BLOCKED orders you checked.")
+
+    def check_shipment(order_id: str) -> ToolResult:
+        idx = order_of.get(order_id)
+        if idx is None:
+            return ToolResult(content=render_error("not_found", f"order {order_id}"),
+                              is_error=True, error_type="not_found")
+        hint = _next_hint(idx)
+        if order_id in blocked:
+            ref, body = blocked[order_id]
+            content = f"{body}{hint}"
+            return ToolResult(content=content, is_error=True, error_type="blocked",
+                              extracted_ids=[ref], size_tokens=_est_tokens(content))
+        content = f"OK: {order_id} shipped normally; nothing to report.{hint}"
+        return ToolResult(content=content, size_tokens=_est_tokens(content))
+
+    def file_report(refs: list[str]) -> ToolResult:
+        shown = ", ".join(refs) if refs else "(none)"
+        return ToolResult(content=f"Report filed with {len(refs)} ref(s): {shown}.",
+                          extracted_ids=list(refs), size_tokens=_est_tokens(shown))
+
+    check_schema = {"type": "object", "properties": {"order_id": {"type": "string"}},
+                    "required": ["order_id"]}
+    report_schema = {"type": "object",
+                     "properties": {"refs": {"type": "array", "items": {"type": "string"}}},
+                     "required": ["refs"]}
+    return (
+        Tool("check_shipment",
+             "Check one order's shipment status; the result names the next order to check.",
+             check_schema, check_shipment),
+        Tool("file_report", "File the consolidated report with all collected release refs.",
+             report_schema, file_report),
+    )
+
+
+# --- correction tier (§1.2 BEHAVIORAL): a format the agent must LEARN from a failure ---
+def correct_code(raw: str) -> str:
+    """The required submission form of a raw code: a dash after the first 3 characters."""
+    return f"{raw[:3]}-{raw[3:]}"
+
+
+def make_correction_tools(
+    records: dict[str, str], chain_bodies: dict[str, str], chain: Sequence[str]
+) -> tuple[Tool, ...]:
+    """Correction-tier toolset (§1.2 behavioral test). `submit_record(record_id, code)` enforces a
+    FORMAT (`correct_code`: a dash after the first 3 chars) — a wrong submit is an `is_error` whose
+    content teaches the *rule* (generic example, not the answer). `records` = {id: raw_code}.
+    `check_shipment` walks a chain of `chain_bodies` (moderate OK logs) — the context-filling
+    DISTRACTOR that compacts an early failure away. Because the rule lives ONLY in the failure
+    content (the agent's own submit shows the *wrong* code; the correction is in the result), a LATE
+    submit is correct on first attempt iff the failure was preserved — behavioral supervision, not
+    payload survival."""
+    order_of = {oid: i for i, oid in enumerate(chain)}
+
+    def submit_record(record_id: str, code: str) -> ToolResult:
+        raw = records.get(record_id)
+        if raw is None:
+            return ToolResult(content=render_error("not_found", f"record {record_id}"),
+                              is_error=True, error_type="not_found")
+        if code == correct_code(raw):
+            return ToolResult(content=f"Record {record_id} accepted.", size_tokens=4)
+        content = (f"INVALID: a record code must have a dash after the first 3 characters "
+                   f"(e.g. ABC1234 → ABC-1234). You sent '{code}'.")
+        return ToolResult(content=content, is_error=True, error_type="invalid_format",
+                          size_tokens=_est_tokens(content))
+
+    def check_shipment(order_id: str) -> ToolResult:
+        idx = order_of.get(order_id)
+        if idx is None:
+            return ToolResult(content=render_error("not_found", f"order {order_id}"),
+                              is_error=True, error_type="not_found")
+        nxt = (f" Next, check shipment for {chain[idx + 1]}." if idx + 1 < len(chain)
+               else " That is the last order in the audit.")
+        content = f"{chain_bodies[order_id]}{nxt}"
+        return ToolResult(content=content, size_tokens=_est_tokens(content))
+
+    submit_schema = {"type": "object",
+                     "properties": {"record_id": {"type": "string"}, "code": {"type": "string"}},
+                     "required": ["record_id", "code"]}
+    check_schema = {"type": "object", "properties": {"order_id": {"type": "string"}},
+                    "required": ["order_id"]}
+    return (
+        Tool("submit_record", "Submit a record by id with its code.", submit_schema, submit_record),
+        Tool("check_shipment", "Check an order's shipment; the result names the next order.",
+             check_schema, check_shipment),
+    )
+
+
 # --- refund tier (#4-v2): self-generated semantic role-binding interference ---
 # `return_shape` is the #4ii fix lever (how apply_adjustment re-states each binding);
 # `doc_quality` is the competing lever (tool-description guidance) for the ordering test.
