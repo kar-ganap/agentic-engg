@@ -341,6 +341,59 @@ def make_compaction_tools(
     )
 
 
+# --- correction tier (§1.2 BEHAVIORAL): a format the agent must LEARN from a failure ---
+def correct_code(raw: str) -> str:
+    """The required submission form of a raw code: a dash after the first 3 characters."""
+    return f"{raw[:3]}-{raw[3:]}"
+
+
+def make_correction_tools(
+    records: dict[str, str], chain_bodies: dict[str, str], chain: Sequence[str]
+) -> tuple[Tool, ...]:
+    """Correction-tier toolset (§1.2 behavioral test). `submit_record(record_id, code)` enforces a
+    FORMAT (`correct_code`: a dash after the first 3 chars) — a wrong submit is an `is_error` whose
+    content teaches the *rule* (generic example, not the answer). `records` = {id: raw_code}.
+    `check_shipment` walks a chain of `chain_bodies` (moderate OK logs) — the context-filling
+    DISTRACTOR that compacts an early failure away. Because the rule lives ONLY in the failure
+    content (the agent's own submit shows the *wrong* code; the correction is in the result), a LATE
+    submit is correct on first attempt iff the failure was preserved — behavioral supervision, not
+    payload survival."""
+    order_of = {oid: i for i, oid in enumerate(chain)}
+
+    def submit_record(record_id: str, code: str) -> ToolResult:
+        raw = records.get(record_id)
+        if raw is None:
+            return ToolResult(content=render_error("not_found", f"record {record_id}"),
+                              is_error=True, error_type="not_found")
+        if code == correct_code(raw):
+            return ToolResult(content=f"Record {record_id} accepted.", size_tokens=4)
+        content = (f"INVALID: a record code must have a dash after the first 3 characters "
+                   f"(e.g. ABC1234 → ABC-1234). You sent '{code}'.")
+        return ToolResult(content=content, is_error=True, error_type="invalid_format",
+                          size_tokens=_est_tokens(content))
+
+    def check_shipment(order_id: str) -> ToolResult:
+        idx = order_of.get(order_id)
+        if idx is None:
+            return ToolResult(content=render_error("not_found", f"order {order_id}"),
+                              is_error=True, error_type="not_found")
+        nxt = (f" Next, check shipment for {chain[idx + 1]}." if idx + 1 < len(chain)
+               else " That is the last order in the audit.")
+        content = f"{chain_bodies[order_id]}{nxt}"
+        return ToolResult(content=content, size_tokens=_est_tokens(content))
+
+    submit_schema = {"type": "object",
+                     "properties": {"record_id": {"type": "string"}, "code": {"type": "string"}},
+                     "required": ["record_id", "code"]}
+    check_schema = {"type": "object", "properties": {"order_id": {"type": "string"}},
+                    "required": ["order_id"]}
+    return (
+        Tool("submit_record", "Submit a record by id with its code.", submit_schema, submit_record),
+        Tool("check_shipment", "Check an order's shipment; the result names the next order.",
+             check_schema, check_shipment),
+    )
+
+
 # --- refund tier (#4-v2): self-generated semantic role-binding interference ---
 # `return_shape` is the #4ii fix lever (how apply_adjustment re-states each binding);
 # `doc_quality` is the competing lever (tool-description guidance) for the ordering test.

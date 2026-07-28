@@ -14,6 +14,7 @@ from stance.tooluse.domain import gen_amount
 from stance.tooluse.tasks.binding import build_binding_task
 from stance.tooluse.tasks.chain import build_chain_task
 from stance.tooluse.tasks.compaction import build_compaction_task
+from stance.tooluse.tasks.correction import build_correction_task
 from stance.tooluse.tasks.diffuse import build_diffuse_task
 from stance.tooluse.tasks.format import build_format_task
 from stance.tooluse.tasks.loopguard import build_loopguard_task
@@ -30,6 +31,7 @@ from stance.tooluse.tasks.selection import build_selection_task
 from stance.tooluse.tools import (
     dispatch,
     make_compaction_tools,
+    make_correction_tools,
     make_refund_tools,
     make_selection_tools,
     make_tools,
@@ -459,3 +461,31 @@ def test_compaction_anticipation_iv_controls_the_prompt() -> None:
     assert "ref" in up.prompt and "file_report" in up.prompt  # requirement pre-announced
     assert "ref" not in rev.prompt and "file_report" not in rev.prompt  # withheld until the end
     assert up.ivs["anticipated"] is True and rev.ivs["anticipated"] is False
+
+
+# --- correction tier (§1.2 behavioral): learn a format from a failure, apply it late ------
+def test_correction_stages_probe_and_measured_records() -> None:
+    _, task = build_correction_task(seed=1, n_distractor=7, n_measured=2)
+    recs = task.notes["records"]
+    assert "R1-TEST" in recs and task.notes["measured_ids"] == ["R2", "R3"]
+    for rid in ("R2", "R3"):
+        raw = recs[rid]
+        assert task.notes["true_codes"][rid] == raw[:3] + "-" + raw[3:]  # dash after 3 chars
+    assert len(task.notes["chain"]) == 7
+    w2 = next(w for w in task.expected_writes if w.args["record_id"] == "R2")
+    assert w2.action == "submit_record" and "-" in w2.args["code"]
+
+
+def test_correction_submit_enforces_format_teaches_rule_generically() -> None:
+    _, task = build_correction_task(seed=2)
+    recs, chain, bodies = task.notes["records"], task.notes["chain"], task.notes["chain_bodies"]
+    tools = make_correction_tools(recs, bodies, chain)
+    raw = recs["R2"]
+    bad = dispatch(tools, "submit_record", {"record_id": "R2", "code": raw})  # wrong (raw) submit
+    assert bad.is_error and bad.error_type == "invalid_format"
+    assert "dash after the first 3" in bad.content  # teaches the RULE
+    assert task.notes["true_codes"]["R2"] not in bad.content  # but NOT the record's own answer
+    ok = dispatch(tools, "submit_record", {"record_id": "R2", "code": raw[:3] + "-" + raw[3:]})
+    assert not ok.is_error and "accepted" in ok.content
+    first = dispatch(tools, "check_shipment", {"order_id": chain[0]})  # distractor walks the chain
+    assert chain[1] in first.content and not first.is_error
