@@ -5,9 +5,9 @@ flagged as untested (ref-recall measured payload survival). Committing this befo
 pre-registration; the graph moves at `record_correction.py`. Run to print it.
 
 CLAIM: preserving a failure that carries a CORRECTIVE (a format RULE the agent must APPLY) enables
-behavioral correction — a LATE submit succeeds — while summarizing it away breaks it, UNDER ephemeral
-reasoning (Haiku `strip`) or a NON-reasoning model (`deepseek-chat`). With persisted reasoning the
-model self-rescues the rule (null). Task-success DV, not payload survival.
+behavioral correction — a LATE submit succeeds — while summarizing it away breaks it, UNDER
+ephemeral reasoning (Haiku `strip`) or a NON-reasoning model (`deepseek-chat`). With persisted
+reasoning, the model self-rescues the rule (null). Task-success DV, not payload survival.
 
 FALSIFIER (user-confirmed): (a) `strip`+preserve does NOT beat `strip`+summarize on behavioral
 success at 5 seeds → the behavioral claim fails on own-substrate (down §1.2); (b) `persist` ALSO

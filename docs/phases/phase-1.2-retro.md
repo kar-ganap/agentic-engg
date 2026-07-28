@@ -10,11 +10,12 @@ Three threads. **Thread 0** installed the systematic anti-lapse fix (`tasks/cove
 78**: confusable-sibling *presence* — not count — degrades first-tool selection; a sibling whose
 NAME matches the request verb captures the call (step-function; causally pinned by a verb-swap;
 cross-provider DeepSeek+Haiku); namespacing recovers. **Thread B** (compaction) resolved §1.2 →
-**`compaction-preserve-failures`, candidate 74**: preserving failures *verbatim* beats summarizing
-— **iff the agent's reasoning is ephemeral**; with persisted reasoning the model self-rescues
-(null, cross-provider). Both DVs are **mechanical** (first-tool match / ref-recall — no LLM judge,
-so cheap and no grader-validation caveat). Thread B's substrate investigation is the phase's biggest
-story (below).
+**`compaction-preserve-failures`**: preserving failures *verbatim* beats summarizing — **iff the
+agent's reasoning is ephemeral**; with persisted reasoning the model self-rescues (null,
+cross-provider). **Thread C** (added at close, after the reviewer pass flagged the payload-survival
+DV) then tested §1.2's *actual* behavioral-supervision claim on a **task-success** DV, cross-provider
+→ **§1.2 → 78, active** (below). All DVs are **mechanical / task-success** (no LLM judge — cheap, no
+grader caveat). Thread B's substrate investigation is the phase's biggest story (below).
 
 ## Concept-stream output (synthesis-anchored)
 
@@ -90,8 +91,21 @@ for the capstone literature pass, not blocking.
 
 **Net:** two confidence corrections (both *down*), several reframes, no redo. The pass did precisely
 its job — it stopped two over-claims (an unconditional §1.2 header carrying a 74; a "tool selection
-fails" gloss) from being banked into the capstone. Graph trajectories: §1.2 **68→74→68**, tool-selection
+fails" gloss) from being banked into the capstone. Graph trajectories: §1.2 **68→74→68→78**, tool-selection
 **55→78→74** (corrections preserved in append-only history).
+
+### Thread C — the reviewers' path-to-active, run and confirmed (§1.2 68 → 78, active)
+
+The pass's sharpest §1.2 critique was that ref-recall tested *payload survival*, not the stance's
+**behavioral-supervision** claim (the agent *adapts its actions* — Reflexion). Rather than defer it, we
+built + ran the pre-registered behavioral test (prior 62): a correction task (learn a format rule from
+a failure → distractor audit compacts it → apply-late, no intervening success), **task-success DV**.
+Result: `strip` preserve **1.00** vs summarize **0.00**, per-seed-perfect on **Haiku** *and*
+**`deepseek-chat`** (validated non-reasoning — reaches the strip bite); `persist` null. Both falsifier
+clauses failed → it discharged the two biggest caps (behavioral-untested; single-provider) in one move,
+the pre-registered +12 up-clause fired → **§1.2 68 → 78, active** (user-confirmed). `results-correction.md`.
+This is the discipline working end-to-end: the reviewer pass named the exact missing evidence, and the
+same phase produced it.
 
 ## Method wins (process-stream → `tasks/lessons.md`)
 
@@ -156,12 +170,10 @@ fails" gloss) from being banked into the capstone. Graph trajectories: §1.2 **6
 
 - **§1.10 → active:** a 2nd task template / verb-pair (does lexical-capture generalize beyond
   "lookup"/"look up"?).
-- **§1.2 → active: the behavioral-supervision test** (designed with the user at close) — the failure
-  carries a *corrective the agent must APPLY* (a param-format rule / a precondition), learned early →
-  applied late after a distractor stretch compacts it, with **task-success** as the DV (not payload
-  survival) and **no intervening successful use** to re-teach it (else self-rescue via
-  success-history) — run on a **non-reasoning provider** to restore cross-provider for the bite.
-  Discharges three reviewer caps at once (behavioral DV + less-engineered + cross-provider).
+- **§1.2 is now active (78)** — the behavioral test was run + confirmed at close (Thread C). Next
+  (would move it further / is the remaining `regime-generality` cap): the behavioral bite on a
+  **less-engineered / production-shaped** failure task, or a **downstream multi-step-goal** DV; and
+  the §2.1 crossover point (failure accumulation → rot vs turn count).
 - **Fresh-window half of the compaction exercise** → M7/8 memory bake-off (deferred, homed).
 - **Held-out tool-eval set + eval methodology** → Phase 2.1 (the M6 eval module) — unchanged.
 - **A non-reasoning DeepSeek model** could reach the `strip` regime → a possible cross-provider
