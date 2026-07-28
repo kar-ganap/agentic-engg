@@ -45,6 +45,7 @@ class Evidence:
     summary: str
     strength: str  # direct | corroborating | lower_bound | contradicting
     claim_ids: tuple[str, ...] = ()
+    date: str = ""  # ISO date recorded/ingested — the staleness flux axis (Phase 2.1); "" = undated
 
     def to_jsonl(self) -> str:
         return json.dumps(asdict(self), sort_keys=True)
@@ -52,7 +53,8 @@ class Evidence:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Evidence:
         return cls(id=d["id"], type=d["type"], source=d["source"], summary=d["summary"],
-                   strength=d["strength"], claim_ids=tuple(d.get("claim_ids", ())))
+                   strength=d["strength"], claim_ids=tuple(d.get("claim_ids", ())),
+                   date=d.get("date", ""))
 
 
 @dataclass(frozen=True)
@@ -64,6 +66,7 @@ class Support:
     evidence_id: str
     warrant: str
     polarity: str  # supports | contradicts | inconclusive (related but confounded/unresolved)
+    date: str = ""  # ISO date recorded (staleness flux, Phase 2.1); "" = undated
 
     def to_jsonl(self) -> str:
         return json.dumps(asdict(self), sort_keys=True)
@@ -71,7 +74,7 @@ class Support:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Support:
         return cls(position_id=d["position_id"], evidence_id=d["evidence_id"],
-                   warrant=d["warrant"], polarity=d["polarity"])
+                   warrant=d["warrant"], polarity=d["polarity"], date=d.get("date", ""))
 
 
 @dataclass(frozen=True)

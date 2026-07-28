@@ -70,6 +70,21 @@ def test_support_warrant_and_polarity(tmp_path: Path) -> None:
     assert g.supports_for("3.8")[0].warrant.startswith("opposite scaling")
 
 
+def test_evidence_support_date_roundtrip_and_backward_compat(tmp_path: Path) -> None:
+    # the Phase-2.1 staleness flux axis: Evidence/Support carry an optional ISO `date`
+    store = GraphStore(tmp_path)
+    store.add(Evidence("ev-d", "experimental", "r.md", "...", "direct", date="2026-07-28"))
+    store.add(Support("p1", "ev-d", warrant="w", polarity="supports", date="2026-07-28"))
+    g = store.load()
+    assert g.evidence["ev-d"].date == "2026-07-28" and g.supports_for("p1")[0].date == "2026-07-28"
+    # backward-compat: an existing JSONL line with NO `date` key loads as "" (not a KeyError)
+    with (tmp_path / "evidence.jsonl").open("a", encoding="utf-8") as f:
+        f.write('{"id": "ev-old", "type": "literature", "source": "S", "summary": "x", '
+                '"strength": "corroborating"}\n')
+    g2 = store.load()
+    assert g2.evidence["ev-old"].date == "" and g2.evidence["ev-d"].date == "2026-07-28"
+
+
 def test_legs_preserved(tmp_path: Path) -> None:
     store = GraphStore(tmp_path)
     store.add(_pos("1.1", 80, legs=(Leg("cache", 90), Leg("coherence", 65))))
