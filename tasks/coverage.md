@@ -25,13 +25,13 @@
 | compaction + fresh-window (Ex2) | 1 | **COVERED** | 1.2 | `compaction.py` (TDD) + loop hook; §1.2 **ACTIVE 78** (behavioral confirm, Thread C); the *fresh-window* half → M7/8 memory (deferred) |
 | SELF-ROUTE RAG-vs-LC (Ex3) | 1 | DEFERRED | 3.3 (M8) | clean, homed |
 | tool-selection + namespacing (#2) | 2 | **COVERED** | 1.2 | §1.10 candidate **74** (reviewer-adjusted from 78); name>description weighting (reframed off 'failure'), verb-swap causal, cross-provider. Path to active: 2nd template/verb-pair |
-| **held-out tool eval set** | 2 | **GAP** | **2.1** | curriculum-required; the eval-mislabel twin |
+| **held-out tool eval set** | 2 | **COVERED** | 2.1 | B4: 60 selection tasks, reserved seeds 101-110 disjoint from dev (1-5), deterministic first-tool DV; `stance.eval.heldout` + surface |
 | return-a-reference (large payload) | 2 | PARTIAL | future | #6 tested small-id only — wrong scope; "handle=overhead" ≠ "ref doesn't help" |
-| loop-guard / terminal-state *effect* (#7) | 2 | PARTIAL | future | mechanism built + unit-tested; effect unmeasured |
+| loop-guard / terminal-state *effect* (#7) | 2 | PARTIAL | future | mechanism built + unit-tested; B6 reliability report is the *sensor* (silent-loop / terminal-status / silent-wrong), but the current 55-run corpus is all-clean so there are no fires to measure yet |
 | logit-masking over mutation (#1) | 2 | DEFERRED | future | stack-gated (needs a prefill smoke) |
 | tool granularity (#5) | 2 | DEFERRED | future | flagged to drop |
-| eval-driven tool-dev (agent rewrites descriptions) | 2 | DEFERRED | 2.1 | → eval module |
-| **eval methodology** (det-vs-prob verifiers, trajectory eval, observability, judge-validation) | 6 | **GAP** | **2.1** | the mislabel; our grader is all-probabilistic + unvalidated |
+| eval-driven tool-dev (agent rewrites descriptions) | 2 | **COVERED** | 2.1 | B5: free-rewrite recovers held-out selection, but the isolation shows it's attractor-demotion not correct-tool-improvement → STRENGTHENS §1.10; `ev-eval-driven-dev` recorded, nudge deferred to reviewer pass |
+| **eval methodology** (det-vs-prob verifiers, trajectory eval, observability, judge-validation) | 6 | **PARTIAL** | **2.1** | B1 verifier-split (det+prob, deterministic-first gate, correctives) + B6 reliability report + B7 feedback-loop attribution DONE; B2 judge-validation harness built (labels pending → §1.9); B3 OTel/Langfuse pending Langfuse keys |
 
 ## Filed positions needing own-substrate evidence
 
