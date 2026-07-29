@@ -31,6 +31,8 @@
 
 | 2026-07-28 | 2.1 | B5: eval-driven-dev (§1.10 follow-up) — loop + deterministic isolation | DeepSeek | deepseek-v4-flash | ~0.022M / ~0.032M | ~$0.02 | 354 calls, **mechanical selection DV** (no judge → cheap): smoke 30 + full 102 ×2 + deterministic isolation 120. Result: free-rewrite recovers held-out selection, but the isolation shows the lever is ATTRACTOR-demotion, not correct-tool-improvement (`correct_only` 0.30 FAILS, `attractor_only` 1.00) → **strengthens §1.10** (name>description confirmed on a new test) + adds an exclusionary-attractor lever. Controlled-LLM arm returned empty visible content on v4-flash (§0.27). Exact from meter. `results-eval-driven-dev.md`. |
 
+| 2026-07-29 | 2.1 | B8: framework bake-off (raw vs LangGraph) + B3 observability | Anthropic | claude-haiku-4-5 | ~0.05M / ~0.01M | ~$0.10 | 26 Haiku runs, model held CONSTANT (framework = IV). Success both 1.00; density-3 cost is noisy (§1.10 attractor path, not framework); **density-1 control isolates overhead → raw ≈ langgraph (1437 tok, 2.1s, identical)**. CrewAI DEFERRED (lancedb no x86_64-macOS wheel). **B3 observability = $0** (trace replay to Langfuse, no model calls). Adoption threshold: raw loop is the default. `results-bakeoff.md` / `results-observability.md`. |
+
 > **Un-itemized iteration:** cumulative Haiku spend *including* debugging runs that were overwritten (count_tokens-validation failures, the max_tokens=64 truncation era, tool-param experiments — lessons §0.4/§0.11) ran a loose tally of ~$42. Those were not logged per-call, so only the regeneration cost above is reproducible. **Lesson:** log spend at run time, not retroactively (proposed §0.12).
 
 ## Running total
