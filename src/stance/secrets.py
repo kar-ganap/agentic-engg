@@ -57,3 +57,22 @@ def has_moonshot_key() -> bool:
 
 def moonshot_api_key() -> str:
     return get_secret("MOONSHOT_API_KEY")
+
+
+def has_langfuse_keys() -> bool:
+    """True iff all three Langfuse keys are defined in `.env` (shell is not consulted)."""
+    env = dotenv_values(_ENV_PATH)
+    keys = ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_BASE_URL")
+    return all(env.get(k) for k in keys)
+
+
+def langfuse_public_key() -> str:
+    return get_secret("LANGFUSE_PUBLIC_KEY")
+
+
+def langfuse_secret_key() -> str:
+    return get_secret("LANGFUSE_SECRET_KEY")
+
+
+def langfuse_base_url() -> str:
+    return get_secret("LANGFUSE_BASE_URL")
